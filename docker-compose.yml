@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # API Gateway - Point d'entrée pour toutes les requêtes
+  api-gateway:
+    build:
+      context: ./server/services/api-gateway
+    container_name: cesi-eat-api-gateway
+    ports:
+      - "5000:5000"
+    depends_on:
+      - livreur-service
+      - restaurant-service
+      - user-service
+      - order-service
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - LIVREUR_SERVICE_URL=http://livreur-service:3001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - USER_SERVICE_URL=http://user-service:3003
+      - ORDER_SERVICE_URL=http://order-service:3004
+
+  # Service livreur
+  livreur-service:
+    build:
+      context: ./server/services/livreur-service
+    container_name: cesi-eat-livreur-service
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-livreur
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+
+  # Service restaurant
+  restaurant-service:
+    build:
+      context: ./server/services/restaurant-service
+    container_name: cesi-eat-restaurant-service
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-restaurant
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+
+  # Service utilisateur
+  user-service:
+    build:
+      context: ./server/services/user-service
+    container_name: cesi-eat-user-service
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-user
+      - JWT_SECRET=votresecretjwt
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+
+  # Service commande
+  order-service:
+    build:
+      context: ./server/services/order-service
+    container_name: cesi-eat-order-service
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-order
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+
+  # MongoDB - Base de données principale
+  mongodb:
+    image: mongo:latest
+    container_name: cesi-eat-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - cesi-eat-network
+    command: ["--noauth"]
+
+  # RabbitMQ - Message broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cesi-eat-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - cesi-eat-network
+
+  # Service de logs
+  log-service:
+    build:
+      context: ./server/services/log-service
+    container_name: cesi-eat-log-service
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - cesi-eat-network
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-logs
+      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+
+  # Front-end React
+  frontend:
+    build:
+      context: ./client
+    container_name: cesi-eat-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    depends_on:
+      - api-gateway
+    networks:
+      - cesi-eat-network
+
+networks:
+  cesi-eat-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
