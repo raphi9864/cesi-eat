@@ -1,116 +1,110 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const restaurantSchema = new mongoose.Schema({
+const Restaurant = sequelize.define('Restaurant', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   nom: {
-    type: String,
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   description: {
-    type: String,
-    required: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
-  adresse: {
-    rue: String,
-    ville: String,
-    codePostal: String,
-    pays: String
+  rue: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  ville: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  codePostal: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  pays: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   telephone: {
-    type: String,
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   email: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true
   },
-  categories: [{
-    type: String
-  }],
+  categories: {
+    type: DataTypes.JSON,
+    allowNull: true
+  },
   horaires: {
-    lundi: { ouverture: String, fermeture: String },
-    mardi: { ouverture: String, fermeture: String },
-    mercredi: { ouverture: String, fermeture: String },
-    jeudi: { ouverture: String, fermeture: String },
-    vendredi: { ouverture: String, fermeture: String },
-    samedi: { ouverture: String, fermeture: String },
-    dimanche: { ouverture: String, fermeture: String }
+    type: DataTypes.JSON,
+    allowNull: true
   },
   image: {
-    type: String,
-    default: 'default-restaurant.jpg'
+    type: DataTypes.STRING,
+    defaultValue: 'default-restaurant.jpg'
   },
   note: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 5
+    type: DataTypes.FLOAT,
+    defaultValue: 0
   },
   nombreAvis: {
-    type: Number,
-    default: 0
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   proprietaireId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   statut: {
-    type: String,
-    enum: ['ouvert', 'fermé', 'en_pause'],
-    default: 'fermé'
+    type: DataTypes.ENUM('ouvert', 'fermé', 'en_pause'),
+    defaultValue: 'fermé'
   },
   tempsLivraisonEstime: {
-    type: Number,
-    required: true,
-    min: 5,
-    max: 120
+    type: DataTypes.INTEGER,
+    allowNull: false
   },
   fraisLivraison: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.FLOAT,
+    allowNull: false
   },
   commandeMinimum: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.FLOAT,
+    allowNull: false
   }
 }, {
   timestamps: true
 });
 
-// Index géospatial pour la recherche par proximité
-restaurantSchema.index({ "adresse.location": "2dsphere" });
-
-// Index de recherche textuelle
-restaurantSchema.index({
-  nom: 'text',
-  description: 'text',
-  'categories': 'text'
-});
-
-// Méthode pour calculer la note moyenne
-restaurantSchema.methods.calculerNoteMoyenne = function(nouvelleNote) {
+// Méthodes d'instance
+Restaurant.prototype.calculerNoteMoyenne = function(nouvelleNote) {
   const totalNotes = this.note * this.nombreAvis;
   this.nombreAvis += 1;
   this.note = (totalNotes + nouvelleNote) / this.nombreAvis;
+  return this.save();
 };
 
-// Méthode pour vérifier si le restaurant est ouvert
-restaurantSchema.methods.estOuvert = function() {
+Restaurant.prototype.estOuvert = function() {
   const maintenant = new Date();
   const jour = maintenant.toLocaleDateString('fr-FR', { weekday: 'long' });
   const heure = maintenant.getHours() + ':' + maintenant.getMinutes();
 
-  const horairesJour = this.horaires[jour];
+  const horaires = JSON.parse(this.horaires);
+  const horairesJour = horaires[jour];
+  
   if (!horairesJour || !horairesJour.ouverture || !horairesJour.fermeture) {
     return false;
   }
 
   return heure >= horairesJour.ouverture && heure <= horairesJour.fermeture;
 };
-
-const Restaurant = mongoose.model('Restaurant', restaurantSchema);
 
 module.exports = Restaurant;

@@ -1,9 +1,12 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 const amqp = require('amqplib');
+
+const sequelize = require('./config/database');
+const Restaurant = require('./models/Restaurant');
+const Dish = require('./models/Dish');
 
 const restaurantRoutes = require('./routes/restaurant');
 const dishRoutes = require('./routes/dishes');
@@ -16,13 +19,21 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// Connexion à MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('Connecté à MongoDB'))
-.catch(err => console.error('Erreur de connexion à MongoDB:', err));
+// Connexion à MySQL avec Sequelize
+async function connectToDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log('Connecté à MySQL via Sequelize');
+    
+    // Synchroniser les modèles avec la base de données
+    await sequelize.sync({ alter: true });
+    console.log('Modèles synchronisés avec la base de données');
+  } catch (error) {
+    console.error('Erreur de connexion à MySQL:', error);
+  }
+}
+
+connectToDatabase();
 
 // Connexion à RabbitMQ
 let channel;

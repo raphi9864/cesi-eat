@@ -1,24 +1,7 @@
-FROM node:18-alpine
+FROM nginx:alpine
 
-WORKDIR /app
+COPY ./build /usr/share/nginx/html
 
-# Copier les fichiers de dépendances
-COPY package*.json ./
+EXPOSE 80
 
-# Installer les dépendances
-RUN npm install
-
-# Copier le reste des fichiers
-COPY . .
-
-# Construire l'application
-RUN npm run build
-
-# Installer serve pour servir l'application en production
-RUN npm install -g serve
-
-# Exposer le port
-EXPOSE 3000
-
-# Démarrer l'application
-CMD ["serve", "-s", "build", "-l", "3000"] 
+CMD ["nginx", "-g", "daemon off;"] 

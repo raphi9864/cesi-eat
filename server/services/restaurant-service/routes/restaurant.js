@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const Restaurant = require('../models/Restaurant');
 const jwt = require('jsonwebtoken');
 
@@ -29,31 +30,36 @@ const checkRole = (roles) => {
 router.get('/', async (req, res) => {
   try {
     const { categorie, ville, recherche, page = 1, limite = 10 } = req.query;
-    let query = {};
+    let where = {};
+    let options = {
+      limit: parseInt(limite),
+      offset: (page - 1) * parseInt(limite),
+      order: [['note', 'DESC']]
+    };
 
     if (categorie) {
-      query.categories = categorie;
+      where.categories = { [Op.like]: `%${categorie}%` };
     }
 
     if (ville) {
-      query['adresse.ville'] = ville;
+      where.ville = ville;
     }
 
     if (recherche) {
-      query.$text = { $search: recherche };
+      where[Op.or] = [
+        { nom: { [Op.like]: `%${recherche}%` } },
+        { description: { [Op.like]: `%${recherche}%` } }
+      ];
     }
 
-    const restaurants = await Restaurant.find(query)
-      .skip((page - 1) * limite)
-      .limit(parseInt(limite))
-      .sort({ note: -1 });
+    options.where = where;
 
-    const total = await Restaurant.countDocuments(query);
+    const { count, rows: restaurants } = await Restaurant.findAndCountAll(options);
 
     res.json({
       restaurants,
-      total,
-      pages: Math.ceil(total / limite),
+      total: count,
+      pages: Math.ceil(count / limite),
       page: parseInt(page)
     });
   } catch (error) {
@@ -64,7 +70,7 @@ router.get('/', async (req, res) => {
 // Obtenir un restaurant par ID
 router.get('/:id', async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await Restaurant.findByPk(req.params.id);
     if (!restaurant) {
       return res.status(404).json({ message: 'Restaurant non trouvé' });
     }
@@ -77,12 +83,10 @@ router.get('/:id', async (req, res) => {
 // Créer un restaurant (restaurateur seulement)
 router.post('/', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const restaurant = new Restaurant({
+    const restaurant = await Restaurant.create({
       ...req.body,
       proprietaireId: req.user.userId
     });
-
-    await restaurant.save();
 
     res.status(201).json(restaurant);
   } catch (error) {
@@ -93,24 +97,20 @@ router.post('/', checkRole(['restaurateur', 'admin']), async (req, res) => {
 // Mettre à jour un restaurant
 router.put('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await Restaurant.findByPk(req.params.id);
 
     if (!restaurant) {
       return res.status(404).json({ message: 'Restaurant non trouvé' });
     }
 
     // Vérifier que l'utilisateur est le propriétaire ou un admin
-    if (restaurant.proprietaireId.toString() !== req.user.userId && req.user.role !== 'admin') {
+    if (restaurant.proprietaireId !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Non autorisé à modifier ce restaurant' });
     }
 
-    const restaurantMisAJour = await Restaurant.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    await restaurant.update(req.body);
 
-    res.json(restaurantMisAJour);
+    res.json(restaurant);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la mise à jour du restaurant', error: error.message });
   }
@@ -119,18 +119,18 @@ router.put('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
 // Supprimer un restaurant
 router.delete('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await Restaurant.findByPk(req.params.id);
 
     if (!restaurant) {
       return res.status(404).json({ message: 'Restaurant non trouvé' });
     }
 
     // Vérifier que l'utilisateur est le propriétaire ou un admin
-    if (restaurant.proprietaireId.toString() !== req.user.userId && req.user.role !== 'admin') {
+    if (restaurant.proprietaireId !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Non autorisé à supprimer ce restaurant' });
     }
 
-    await Restaurant.findByIdAndDelete(req.params.id);
+    await restaurant.destroy();
 
     res.json({ message: 'Restaurant supprimé avec succès' });
   } catch (error) {
@@ -142,14 +142,13 @@ router.delete('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => 
 router.post('/:id/noter', checkRole(['client']), async (req, res) => {
   try {
     const { note } = req.body;
-    const restaurant = await Restaurant.findById(req.params.id);
+    const restaurant = await Restaurant.findByPk(req.params.id);
 
     if (!restaurant) {
       return res.status(404).json({ message: 'Restaurant non trouvé' });
     }
 
     restaurant.calculerNoteMoyenne(note);
-    await restaurant.save();
 
     res.json(restaurant);
   } catch (error) {
@@ -160,9 +159,16 @@ router.post('/:id/noter', checkRole(['client']), async (req, res) => {
 // Obtenir les restaurants populaires
 router.get('/populaires', async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({ note: { $gte: 4 } })
-      .sort({ note: -1, nombreAvis: -1 })
-      .limit(10);
+    const restaurants = await Restaurant.findAll({
+      where: {
+        note: { [Op.gte]: 4 }
+      },
+      order: [
+        ['note', 'DESC'],
+        ['nombreAvis', 'DESC']
+      ],
+      limit: 10
+    });
 
     res.json(restaurants);
   } catch (error) {

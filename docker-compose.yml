@@ -47,6 +47,7 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
+      - mysql
     networks:
       - cesi-eat-network
     environment:
@@ -54,6 +55,12 @@ services:
       - PORT=3002
       - MONGO_URI=mongodb://mongodb:27017/cesi-eat-restaurant
       - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=restaurant_db
+      - DB_USER=restaurant_user
+      - DB_PASSWORD=restaurant_password
+      - JWT_SECRET=votresecretjwt
 
   # Service utilisateur
   user-service:
@@ -135,13 +142,27 @@ services:
     container_name: cesi-eat-frontend
     ports:
       - "80:80"
-    volumes:
-      - ./client:/app
-      - /app/node_modules
     depends_on:
       - api-gateway
     networks:
       - cesi-eat-network
+
+  # MySQL - Base de données pour le service restaurant
+  mysql:
+    image: mysql:8.0
+    container_name: cesi-eat-mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - cesi-eat-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=restaurant_db
+      - MYSQL_USER=restaurant_user
+      - MYSQL_PASSWORD=restaurant_password
+    command: --default-authentication-plugin=mysql_native_password
 
 networks:
   cesi-eat-network:
@@ -150,3 +171,4 @@ networks:
 volumes:
   mongodb_data:
   rabbitmq_data:
+  mysql_data:

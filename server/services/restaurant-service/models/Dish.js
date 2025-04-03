@@ -1,69 +1,67 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+const Restaurant = require('./Restaurant');
 
-const dishSchema = new mongoose.Schema({
+const Dish = sequelize.define('Dish', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   nom: {
-    type: String,
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
   description: {
-    type: String,
-    required: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   prix: {
-    type: Number,
-    required: true,
-    min: 0
+    type: DataTypes.FLOAT,
+    allowNull: false
   },
   image: {
-    type: String,
-    default: 'default-dish.jpg'
-  },
-  restaurantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Restaurant',
-    required: true
+    type: DataTypes.STRING,
+    defaultValue: 'default-dish.jpg'
   },
   categorie: {
-    type: String,
-    required: true
+    type: DataTypes.STRING,
+    allowNull: false
   },
-  allergenes: [{
-    type: String
-  }],
+  options: {
+    type: DataTypes.JSON,
+    allowNull: true
+  },
   disponible: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
-  popular: {
-    type: Boolean,
-    default: false
+  allergenes: {
+    type: DataTypes.JSON,
+    allowNull: true
   },
-  tempsPreparation: {
-    type: Number,
-    required: true,
-    min: 1
+  estVegetarien: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
-  options: [{
-    nom: String,
-    prix: Number
-  }],
-  nutrition: {
-    calories: Number,
-    proteines: Number,
-    glucides: Number,
-    lipides: Number
+  estVegan: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  restaurantId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: Restaurant,
+      key: 'id'
+    }
   }
 }, {
   timestamps: true
 });
 
-// Index de recherche textuelle
-dishSchema.index({
-  nom: 'text',
-  description: 'text',
-  categorie: 'text'
-});
-
-const Dish = mongoose.model('Dish', dishSchema);
+// Définir la relation avec Restaurant
+Dish.belongsTo(Restaurant);
+Restaurant.hasMany(Dish);
 
 module.exports = Dish; 

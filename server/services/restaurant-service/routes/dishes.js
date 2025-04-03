@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const Dish = require('../models/Dish');
 const Restaurant = require('../models/Restaurant');
 const jwt = require('jsonwebtoken');
@@ -30,27 +31,32 @@ const checkRole = (roles) => {
 router.get('/restaurant/:restaurantId', async (req, res) => {
   try {
     const { categorie, recherche, page = 1, limite = 10 } = req.query;
-    let query = { restaurantId: req.params.restaurantId };
+    let where = { restaurantId: req.params.restaurantId };
+    let options = {
+      limit: parseInt(limite),
+      offset: (page - 1) * parseInt(limite),
+      order: [['createdAt', 'DESC']]
+    };
 
     if (categorie) {
-      query.categorie = categorie;
+      where.categorie = categorie;
     }
 
     if (recherche) {
-      query.$text = { $search: recherche };
+      where[Op.or] = [
+        { nom: { [Op.like]: `%${recherche}%` } },
+        { description: { [Op.like]: `%${recherche}%` } }
+      ];
     }
 
-    const plats = await Dish.find(query)
-      .skip((page - 1) * limite)
-      .limit(parseInt(limite))
-      .sort({ popular: -1, createdAt: -1 });
+    options.where = where;
 
-    const total = await Dish.countDocuments(query);
+    const { count, rows: dishes } = await Dish.findAndCountAll(options);
 
     res.json({
-      plats,
-      total,
-      pages: Math.ceil(total / limite),
+      dishes,
+      total: count,
+      pages: Math.ceil(count / limite),
       page: parseInt(page)
     });
   } catch (error) {
@@ -61,11 +67,11 @@ router.get('/restaurant/:restaurantId', async (req, res) => {
 // Obtenir un plat par ID
 router.get('/:id', async (req, res) => {
   try {
-    const plat = await Dish.findById(req.params.id);
-    if (!plat) {
+    const dish = await Dish.findByPk(req.params.id);
+    if (!dish) {
       return res.status(404).json({ message: 'Plat non trouvé' });
     }
-    res.json(plat);
+    res.json(dish);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la récupération du plat', error: error.message });
   }
@@ -74,21 +80,22 @@ router.get('/:id', async (req, res) => {
 // Créer un plat (restaurateur seulement)
 router.post('/', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const restaurant = await Restaurant.findById(req.body.restaurantId);
+    const { restaurantId } = req.body;
     
+    // Vérifier si le restaurant existe
+    const restaurant = await Restaurant.findByPk(restaurantId);
     if (!restaurant) {
       return res.status(404).json({ message: 'Restaurant non trouvé' });
     }
-
-    // Vérifier que l'utilisateur est le propriétaire du restaurant
-    if (restaurant.proprietaireId.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Non autorisé à ajouter des plats à ce restaurant' });
+    
+    // Vérifier que l'utilisateur est le propriétaire du restaurant ou un admin
+    if (restaurant.proprietaireId !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Non autorisé à ajouter un plat à ce restaurant' });
     }
-
-    const plat = new Dish(req.body);
-    await plat.save();
-
-    res.status(201).json(plat);
+    
+    const dish = await Dish.create(req.body);
+    
+    res.status(201).json(dish);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la création du plat', error: error.message });
   }
@@ -97,28 +104,22 @@ router.post('/', checkRole(['restaurateur', 'admin']), async (req, res) => {
 // Mettre à jour un plat
 router.put('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const plat = await Dish.findById(req.params.id);
-    if (!plat) {
+    const dish = await Dish.findByPk(req.params.id);
+    
+    if (!dish) {
       return res.status(404).json({ message: 'Plat non trouvé' });
     }
-
-    const restaurant = await Restaurant.findById(plat.restaurantId);
-    if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant non trouvé' });
-    }
-
-    // Vérifier que l'utilisateur est le propriétaire du restaurant
-    if (restaurant.proprietaireId.toString() !== req.user.userId && req.user.role !== 'admin') {
+    
+    // Vérifier si l'utilisateur est le propriétaire du restaurant associé ou un admin
+    const restaurant = await Restaurant.findByPk(dish.restaurantId);
+    
+    if (restaurant.proprietaireId !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Non autorisé à modifier ce plat' });
     }
-
-    const platMisAJour = await Dish.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-
-    res.json(platMisAJour);
+    
+    await dish.update(req.body);
+    
+    res.json(dish);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la mise à jour du plat', error: error.message });
   }
@@ -127,23 +128,21 @@ router.put('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
 // Supprimer un plat
 router.delete('/:id', checkRole(['restaurateur', 'admin']), async (req, res) => {
   try {
-    const plat = await Dish.findById(req.params.id);
-    if (!plat) {
+    const dish = await Dish.findByPk(req.params.id);
+    
+    if (!dish) {
       return res.status(404).json({ message: 'Plat non trouvé' });
     }
-
-    const restaurant = await Restaurant.findById(plat.restaurantId);
-    if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant non trouvé' });
-    }
-
-    // Vérifier que l'utilisateur est le propriétaire du restaurant
-    if (restaurant.proprietaireId.toString() !== req.user.userId && req.user.role !== 'admin') {
+    
+    // Vérifier si l'utilisateur est le propriétaire du restaurant associé ou un admin
+    const restaurant = await Restaurant.findByPk(dish.restaurantId);
+    
+    if (restaurant.proprietaireId !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Non autorisé à supprimer ce plat' });
     }
-
-    await Dish.findByIdAndDelete(req.params.id);
-
+    
+    await dish.destroy();
+    
     res.json({ message: 'Plat supprimé avec succès' });
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la suppression du plat', error: error.message });
