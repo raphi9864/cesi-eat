@@ -3,31 +3,37 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('./middleware/verifyToken');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
+
+// Configuration CORS améliorée
+const corsOptions = {
+  origin: ['http://localhost', 'http://localhost:80', 'http://localhost:3000', 'http://cesi-eat-frontend'],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204
+};
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
-// Middleware de vérification du token
-const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ message: 'Token non fourni' });
-  }
+// Middleware pour vérifier les requêtes
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url} - Origin: ${req.headers.origin || 'No Origin'}`);
+  console.log(`[Headers] ${JSON.stringify(req.headers)}`);
+  next();
+});
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+// Fonction de debug pour les proxys
+const debugProxy = (proxyName) => {
+  return (req, res, next) => {
+    console.log(`[DEBUG ${proxyName}] URL: ${req.url}, Method: ${req.method}, Target: ${process.env[`${proxyName.toUpperCase()}_SERVICE_URL`]}${req.url}`);
     next();
-  } catch (error) {
-    return res.status(401).json({ message: 'Token invalide' });
-  }
+  };
 };
 
 // Configuration des proxies pour chaque service
@@ -39,6 +45,15 @@ const userServiceProxy = createProxyMiddleware({
   }
 });
 
+// Configuration spécifique pour les restaurants publics
+const restaurantPublicProxy = createProxyMiddleware({
+  target: process.env.RESTAURANT_SERVICE_URL,
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/restaurants/public': '/public'  // Rediriger vers /public sur le service restaurant
+  }
+});
+
 const restaurantServiceProxy = createProxyMiddleware({
   target: process.env.RESTAURANT_SERVICE_URL,
   changeOrigin: true,
@@ -47,31 +62,24 @@ const restaurantServiceProxy = createProxyMiddleware({
   }
 });
 
-const orderServiceProxy = createProxyMiddleware({
-  target: process.env.ORDER_SERVICE_URL,
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api/orders': '/api'
-  }
-});
-
-const livreurServiceProxy = createProxyMiddleware({
-  target: process.env.LIVREUR_SERVICE_URL,
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api/livreurs': '/api'
-  }
-});
-
 // Routes publiques (sans authentification)
 app.use('/api/users/auth', userServiceProxy); // Login et Register
-app.use('/api/restaurants/public', restaurantServiceProxy); // Liste des restaurants publique
+app.use('/api/restaurants/public', restaurantPublicProxy); // Liste des restaurants publique
 
-// Routes protégées (avec authentification)
+// Routes protégées
 app.use('/api/users', verifyToken, userServiceProxy);
 app.use('/api/restaurants', verifyToken, restaurantServiceProxy);
-app.use('/api/orders', verifyToken, orderServiceProxy);
-app.use('/api/livreurs', verifyToken, livreurServiceProxy);
+app.use('/api/orders', verifyToken, debugProxy('order'), createProxyMiddleware({
+  target: process.env.ORDER_SERVICE_URL,
+  changeOrigin: true,
+  pathRewrite: {}
+}));
+
+app.use('/api/delivery', verifyToken, debugProxy('livreur'), createProxyMiddleware({
+  target: process.env.LIVREUR_SERVICE_URL,
+  changeOrigin: true,
+  pathRewrite: {}
+}));
 
 // Route de test
 app.get('/api/test', (req, res) => {
@@ -87,4 +95,5 @@ app.use((err, req, res, next) => {
 // Démarrage du serveur
 app.listen(PORT, () => {
   console.log(`API Gateway démarré sur le port ${PORT}`);
+  console.log(`CORS configuré pour accepter les requêtes depuis: ${corsOptions.origin.join(', ')}`);
 });

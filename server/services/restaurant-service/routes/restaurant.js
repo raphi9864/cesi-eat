@@ -26,7 +26,33 @@ const checkRole = (roles) => {
   };
 };
 
-// Obtenir tous les restaurants
+// Route publique pour obtenir tous les restaurants sur la racine publique
+router.get('/api/restaurants/public', async (req, res) => {
+  try {
+    const restaurants = await Restaurant.findAll({
+      order: [['note', 'DESC']]
+    });
+    res.json({ restaurants });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des restaurants:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Route publique pour obtenir tous les restaurants
+router.get('/public', async (req, res) => {
+  try {
+    const restaurants = await Restaurant.findAll({
+      order: [['note', 'DESC']]
+    });
+    res.json({ restaurants });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des restaurants:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Obtenir tous les restaurants (avec authentification)
 router.get('/', async (req, res) => {
   try {
     const { categorie, ville, recherche, page = 1, limite = 10 } = req.query;

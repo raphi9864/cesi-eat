@@ -14,39 +14,24 @@ const Dish = sequelize.define('Dish', {
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
   },
   prix: {
-    type: DataTypes.FLOAT,
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
   image: {
     type: DataTypes.STRING,
-    defaultValue: 'default-dish.jpg'
+    allowNull: true
   },
   categorie: {
     type: DataTypes.STRING,
     allowNull: false
   },
-  options: {
-    type: DataTypes.JSON,
-    allowNull: true
-  },
   disponible: {
     type: DataTypes.BOOLEAN,
+    allowNull: false,
     defaultValue: true
-  },
-  allergenes: {
-    type: DataTypes.JSON,
-    allowNull: true
-  },
-  estVegetarien: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  },
-  estVegan: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
   },
   restaurantId: {
     type: DataTypes.INTEGER,
@@ -60,7 +45,7 @@ const Dish = sequelize.define('Dish', {
   timestamps: true
 });
 
-// Définir la relation avec Restaurant
+// Association avec le restaurant
 Dish.belongsTo(Restaurant);
 Restaurant.hasMany(Dish);
 

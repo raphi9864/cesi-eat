@@ -1,100 +1,123 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
-  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const initialValues = {
-    email: '',
-    password: '',
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      setError('Veuillez remplir tous les champs.');
+      return;
+    }
 
-  const validationSchema = Yup.object({
-    email: Yup.string()
-      .email('Adresse email invalide')
-      .required('Email requis'),
-    password: Yup.string()
-      .required('Mot de passe requis'),
-  });
-
-  const handleSubmit = async (values, { setSubmitting, setStatus }) => {
     try {
-      await login(values);
+      setError('');
+      setLoading(true);
+      
+      await login({ email, password });
       navigate('/');
-    } catch (error) {
-      setStatus(error.response?.data?.message || 'Erreur de connexion');
+    } catch (err) {
+      setError('Email ou mot de passe incorrect. Veuillez réessayer.');
+      console.error('Erreur de connexion:', err);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <h1 className="text-3xl font-bold text-center mb-6">Connexion</h1>
-      <Formik
-        initialValues={initialValues}
-        validationSchema={validationSchema}
-        onSubmit={handleSubmit}
-      >
-        {({ isSubmitting, status }) => (
-          <Form className="bg-white p-6 rounded-lg shadow-md">
-            {status && (
-              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-                {status}
-              </div>
-            )}
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-gray-700 mb-2">
-                Email
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Connexion à votre compte
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Ou{' '}
+            <Link to="/register" className="font-medium text-primary hover:text-primary-dark">
+              créez un nouveau compte
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email-address" className="sr-only">
+                Adresse e-mail
               </label>
-              <Field
+              <input
+                id="email-address"
+                name="email"
                 type="email"
-                name="email"
-                id="email"
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <ErrorMessage
-                name="email"
-                component="div"
-                className="text-red-500 text-sm mt-1"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                placeholder="Adresse e-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="mb-6">
-              <label htmlFor="password" className="block text-gray-700 mb-2">
+            <div>
+              <label htmlFor="password" className="sr-only">
                 Mot de passe
               </label>
-              <Field
-                type="password"
-                name="password"
+              <input
                 id="password"
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <ErrorMessage
                 name="password"
-                component="div"
-                className="text-red-500 text-sm mt-1"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Se souvenir de moi
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <a href="#" className="font-medium text-primary hover:text-primary-dark">
+                Mot de passe oublié?
+              </a>
+            </div>
+          </div>
+
+          <div>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-primary text-white p-3 rounded font-semibold hover:bg-primary-dark transition duration-300"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
             >
-              {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+              {loading ? 'Connexion en cours...' : 'Se connecter'}
             </button>
-            <p className="mt-4 text-center text-gray-600">
-              Vous n'avez pas de compte?{' '}
-              <Link to="/register" className="text-primary hover:underline">
-                S'inscrire
-              </Link>
-            </p>
-          </Form>
-        )}
-      </Formik>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

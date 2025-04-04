@@ -13,23 +13,23 @@ const Restaurant = sequelize.define('Restaurant', {
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
   },
   rue: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false
   },
   ville: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false
   },
   codePostal: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false
   },
   pays: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false
   },
   telephone: {
     type: DataTypes.STRING,
@@ -38,26 +38,48 @@ const Restaurant = sequelize.define('Restaurant', {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true
+    validate: {
+      isEmail: true
+    }
   },
   categories: {
-    type: DataTypes.JSON,
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: false,
+    get() {
+      const value = this.getDataValue('categories');
+      return value ? JSON.parse(value) : [];
+    },
+    set(value) {
+      this.setDataValue('categories', JSON.stringify(value));
+    }
   },
   horaires: {
-    type: DataTypes.JSON,
-    allowNull: true
+    type: DataTypes.TEXT,
+    allowNull: false,
+    get() {
+      const value = this.getDataValue('horaires');
+      return value ? JSON.parse(value) : {};
+    },
+    set(value) {
+      this.setDataValue('horaires', JSON.stringify(value));
+    }
   },
   image: {
     type: DataTypes.STRING,
-    defaultValue: 'default-restaurant.jpg'
+    allowNull: true
   },
   note: {
     type: DataTypes.FLOAT,
-    defaultValue: 0
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0,
+      max: 5
+    }
   },
   nombreAvis: {
     type: DataTypes.INTEGER,
+    allowNull: false,
     defaultValue: 0
   },
   proprietaireId: {
@@ -65,20 +87,24 @@ const Restaurant = sequelize.define('Restaurant', {
     allowNull: false
   },
   statut: {
-    type: DataTypes.ENUM('ouvert', 'fermé', 'en_pause'),
+    type: DataTypes.ENUM('ouvert', 'fermé', 'en pause'),
+    allowNull: false,
     defaultValue: 'fermé'
   },
   tempsLivraisonEstime: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    defaultValue: 30
   },
   fraisLivraison: {
-    type: DataTypes.FLOAT,
-    allowNull: false
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
   commandeMinimum: {
-    type: DataTypes.FLOAT,
-    allowNull: false
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   }
 }, {
   timestamps: true
