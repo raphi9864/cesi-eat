@@ -25,9 +25,16 @@ async function connectToDatabase() {
     await sequelize.authenticate();
     console.log('Connecté à MySQL via Sequelize');
     
-    // Synchroniser les modèles avec la base de données
-    await sequelize.sync({ alter: true });
-    console.log('Modèles synchronisés avec la base de données');
+    // Ne pas modifier le schéma automatiquement en production
+    // Les tables sont déjà créées par le script d'initialisation
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync({ alter: true });
+      console.log('Modèles synchronisés avec la base de données (mode development)');
+    } else {
+      // En production, vérifier seulement la concordance
+      await sequelize.sync({ alter: false });
+      console.log('Connexion aux modèles établie sans modification du schéma (mode production)');
+    }
   } catch (error) {
     console.error('Erreur de connexion à MySQL:', error);
   }

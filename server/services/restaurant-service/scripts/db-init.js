@@ -25,12 +25,75 @@ async function initializeDatabase() {
   });
   
   try {
-    // Check if tables already have data
-    const [restaurantRows] = await connection.query('SELECT COUNT(*) as count FROM Restaurants');
-    if (restaurantRows[0].count > 0) {
-      console.log('Database already contains data. Skipping initialization.');
-      return true;
+    // Force re-initialization of data if environment variable is set
+    const forceInit = process.env.FORCE_DB_INIT === 'true';
+    
+    // Check if tables already have data (only if not forcing init)
+    if (!forceInit) {
+      try {
+        const [restaurantRows] = await connection.query('SELECT COUNT(*) as count FROM Restaurants');
+        if (restaurantRows[0].count > 0) {
+          console.log('Database already contains data. Skipping initialization.');
+          return true;
+        }
+      } catch (tableError) {
+        // If error is because tables don't exist yet, it's fine - they'll be created
+        if (tableError.code === 'ER_NO_SUCH_TABLE') {
+          console.log('Tables do not exist yet. They will be created by Sequelize.');
+        } else {
+          throw tableError;
+        }
+      }
+    } else {
+      console.log('Force initialization enabled. Resetting and loading fresh data...');
     }
+    
+    // Ensure database schema is ready
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS Restaurants (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        nom VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        rue VARCHAR(255),
+        ville VARCHAR(255),
+        codePostal VARCHAR(20),
+        pays VARCHAR(100),
+        telephone VARCHAR(20) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        categories JSON,
+        horaires JSON,
+        image VARCHAR(255) DEFAULT 'default-restaurant.jpg',
+        note FLOAT DEFAULT 0,
+        nombreAvis INT DEFAULT 0,
+        proprietaireId VARCHAR(100) NOT NULL,
+        statut ENUM('ouvert', 'fermé', 'en_pause') DEFAULT 'fermé',
+        tempsLivraisonEstime INT NOT NULL,
+        fraisLivraison FLOAT NOT NULL,
+        commandeMinimum FLOAT NOT NULL,
+        createdAt DATETIME,
+        updatedAt DATETIME
+      )
+    `);
+    
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS Dishes (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        nom VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        prix FLOAT NOT NULL,
+        image VARCHAR(255) DEFAULT 'default-dish.jpg',
+        categorie VARCHAR(100) NOT NULL,
+        options JSON,
+        disponible BOOLEAN DEFAULT true,
+        allergenes JSON,
+        estVegetarien BOOLEAN DEFAULT false,
+        estVegan BOOLEAN DEFAULT false,
+        restaurantId INT NOT NULL,
+        createdAt DATETIME,
+        updatedAt DATETIME,
+        FOREIGN KEY (restaurantId) REFERENCES Restaurants(id) ON DELETE CASCADE
+      )
+    `);
     
     // Read SQL file
     const migrationPath = path.join(__dirname, '../migrations/migration.sql');
@@ -42,11 +105,6 @@ async function initializeDatabase() {
     console.log('Database initialization completed successfully!');
     return true;
   } catch (error) {
-    // If error is because tables don't exist yet, it's fine - they'll be created
-    if (error.code === 'ER_NO_SUCH_TABLE') {
-      console.log('Tables do not exist yet. They will be created by Sequelize.');
-      return true;
-    }
     console.error('Error initializing database:', error);
     return false;
   } finally {
