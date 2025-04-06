@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY . .
-
+RUN chmod -R 755 node_modules/.bin/
 RUN npm run build
 
 EXPOSE 3000
