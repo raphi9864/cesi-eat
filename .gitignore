@@ -1,0 +1,11 @@
+# Dépendances
+node_modules/
+frontend/node_modules/
+
+# Fichiers de build
+build/
+frontend/build/
+dist/
+
+# Fichiers d'environnement
+.env
