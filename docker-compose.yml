@@ -1,174 +1,152 @@
 version: '3.8'
 
 services:
-  # API Gateway - Point d'entrée pour toutes les requêtes
-  api-gateway:
-    build:
-      context: ./server/services/api-gateway
-    container_name: cesi-eat-api-gateway
-    ports:
-      - "5000:5000"
-    depends_on:
-      - livreur-service
-      - restaurant-service
-      - user-service
-      - order-service
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=5000
-      - LIVREUR_SERVICE_URL=http://livreur-service:3001
-      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
-      - USER_SERVICE_URL=http://user-service:3003
-      - ORDER_SERVICE_URL=http://order-service:3004
-
-  # Service livreur
-  livreur-service:
-    build:
-      context: ./server/services/livreur-service
-    container_name: cesi-eat-livreur-service
-    depends_on:
-      - mongodb
-      - rabbitmq
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-livreur
-      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
-
-  # Service restaurant
-  restaurant-service:
-    build:
-      context: ./server/services/restaurant-service
-    container_name: cesi-eat-restaurant-service
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - mysql
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=3002
-      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-restaurant
-      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_NAME=restaurant_db
-      - DB_USER=restaurant_user
-      - DB_PASSWORD=restaurant_password
-      - JWT_SECRET=votresecretjwt
-
-  # Service utilisateur
-  user-service:
-    build:
-      context: ./server/services/user-service
-    container_name: cesi-eat-user-service
-    depends_on:
-      - mongodb
-      - rabbitmq
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=3003
-      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-user
-      - JWT_SECRET=votresecretjwt
-      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
-
-  # Service commande
-  order-service:
-    build:
-      context: ./server/services/order-service
-    container_name: cesi-eat-order-service
-    depends_on:
-      - mongodb
-      - rabbitmq
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=3004
-      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-order
-      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
-
-  # MongoDB - Base de données principale
-  mongodb:
-    image: mongo:latest
-    container_name: cesi-eat-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - cesi-eat-network
-    command: ["--noauth"]
-
-  # RabbitMQ - Message broker
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: cesi-eat-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - cesi-eat-network
-
-  # Service de logs
-  log-service:
-    build:
-      context: ./server/services/log-service
-    container_name: cesi-eat-log-service
-    depends_on:
-      - mongodb
-      - rabbitmq
-    networks:
-      - cesi-eat-network
-    environment:
-      - NODE_ENV=production
-      - PORT=3005
-      - MONGO_URI=mongodb://mongodb:27017/cesi-eat-logs
-      - RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
-
-  # Front-end React
+  # Frontend Service
   frontend:
-    build:
-      context: ./client
-    container_name: cesi-eat-frontend
+    build: ./frontend
     ports:
-      - "80:80"
+      - "3000:3000"
+    environment:
+      - HOST=0.0.0.0
+      - BROWSER=none
     depends_on:
       - api-gateway
     networks:
-      - cesi-eat-network
+      - app-network
 
-  # MySQL - Base de données pour le service restaurant
-  mysql:
-    image: mysql:8.0
-    container_name: cesi-eat-mysql
+  # API Gateway Service
+  api-gateway:
+    build: ./api-gateway
     ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - cesi-eat-network
+      - "4000:4000"
+    depends_on:
+      - auth-service
+      - restaurant-service
+      - client-service
+      - delivery-service
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=restaurant_db
-      - MYSQL_USER=restaurant_user
-      - MYSQL_PASSWORD=restaurant_password
-    command: --default-authentication-plugin=mysql_native_password
+      - AUTH_SERVICE_URL=http://auth-service:5000
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:5001
+      - CLIENT_SERVICE_URL=http://client-service:5002
+      - DELIVERY_SERVICE_URL=http://delivery-service:5003
+      - JWT_SECRET=your_secret_key_change_in_production
+    networks:
+      - app-network
+
+  # Authentication Service
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "5000:5000"
+    depends_on:
+      - auth-db
+    environment:
+      - MONGODB_URI=mongodb://auth-db:27017/auth
+      - JWT_SECRET=your_secret_key_change_in_production
+    networks:
+      - app-network
+
+  # Authentication Database (MongoDB)
+  auth-db:
+    image: mongo:latest
+    volumes:
+      - auth-db-data:/data/db
+      - ./auth-service/init-mongo:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Restaurant Service
+  restaurant-service:
+    build: ./restaurant-service
+    ports:
+      - "5001:5001"
+    depends_on:
+      - restaurant-db
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@restaurant-db:5432/restaurant
+    networks:
+      - app-network
+
+  # Restaurant Database (PostgreSQL)
+  restaurant-db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=restaurant
+    volumes:
+      - restaurant-db-data:/var/lib/postgresql/data
+      - ./restaurant-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Client Service
+  client-service:
+    build: ./client-service
+    ports:
+      - "5002:5002"
+    depends_on:
+      - client-db
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@client-db:5432/client
+    networks:
+      - app-network
+
+  # Client Database (PostgreSQL)
+  client-db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=client
+    volumes:
+      - client-db-data:/var/lib/postgresql/data
+      - ./client-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Delivery Service
+  delivery-service:
+    build: ./delivery-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - delivery-db
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@delivery-db:5432/delivery
+    networks:
+      - app-network
+
+  # Delivery Database (PostgreSQL)
+  delivery-db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=delivery
+    volumes:
+      - delivery-db-data:/var/lib/postgresql/data
+      - ./delivery-service/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Logs Database (MongoDB)
+  logs-db:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - logs-db-data:/data/db
+    networks:
+      - app-network
 
 networks:
-  cesi-eat-network:
+  app-network:
     driver: bridge
 
 volumes:
-  mongodb_data:
-  rabbitmq_data:
-  mysql_data:
+  auth-db-data:
+  restaurant-db-data:
+  client-db-data:
+  delivery-db-data:
+  logs-db-data:

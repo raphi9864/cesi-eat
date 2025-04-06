@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import apiClient from '../api/axiosConfig';
+import { useCart } from '../contexts/CartContext';
+
+const RestaurantDetails = () => {
+  const { id } = useParams();
+  const { addItem } = useCart();
+  const [restaurantData, setRestaurantData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  useEffect(() => {
+    const fetchRestaurantDetails = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await apiClient.get(`/restaurants/${id}`);
+        setRestaurantData(response.data);
+      } catch (err) {
+        console.error('Error fetching restaurant details:', err);
+        if (err.response) {
+            if (err.response.status === 404) {
+                setError('Restaurant not found.');
+            } else {
+                setError('Failed to fetch restaurant details. Please try again later.');
+            }
+        } else {
+             setError('Network error or CORS issue. Check console for details.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRestaurantDetails();
+  }, [id]); // Re-fetch if id changes
+
+  // Handle Loading State
+  if (loading) {
+    return <div className="container mx-auto px-4 py-8 text-center">Loading restaurant details...</div>;
+  }
+
+  // Handle Error State
+  if (error) {
+    return <div className="container mx-auto px-4 py-8 text-center text-red-600">Error: {error}</div>;
+  }
+
+  // Handle No Data Found
+  if (!restaurantData) {
+    return <div className="container mx-auto px-4 py-8 text-center">Restaurant data not available.</div>;
+  }
+
+  // Assume restaurantData contains restaurant details and an array `dishes`
+  const { dishes = [], categories = [], ...restaurant } = restaurantData;
+
+  const filteredDishes = selectedCategory === 'all' 
+    ? dishes 
+    : dishes.filter(dish => dish.category === selectedCategory);
+
+  const handleAddToCart = (dish) => {
+    addItem({
+      id: dish.id || dish._id, // Use _id if provided by MongoDB
+      name: dish.name,
+      price: dish.price,
+      image: dish.imageUrl || dish.image, // Assume API provides imageUrl or image
+      restaurantId: restaurant.id || restaurant._id,
+      restaurantName: restaurant.name
+    });
+    // Optional: Add toast notification
+  };
+
+  // Extract categories from dishes if not provided separately
+  const availableCategories = categories.length > 0 
+    ? categories 
+    : [...new Set(dishes.map(d => d.category))].filter(Boolean);
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* En-tête du restaurant */}
+      <div className="mb-8">
+        <div className="rounded-lg overflow-hidden shadow-md mb-4">
+          <img 
+            src={restaurant.imageUrl || restaurant.image || 'https://via.placeholder.com/800x300'} // Fallback image
+            alt={restaurant.name}
+            className="w-full h-64 object-cover"
+          />
+        </div>
+        <h1 className="text-3xl font-bold mb-2">{restaurant.name}</h1>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 text-gray-600">
+          {restaurant.cuisine && <span>{restaurant.cuisine}</span>}
+          {restaurant.cuisine && <span>•</span>}
+          {restaurant.rating && (
+              <div className="flex items-center">
+                  <span className="text-yellow-500 mr-1">★</span>
+                  <span>{restaurant.rating.toFixed(1)}</span>
+              </div>
+          )}
+          {restaurant.rating && <span>•</span>}
+          {restaurant.deliveryTime && <span>{restaurant.deliveryTime}</span>}
+          {restaurant.deliveryTime && <span>•</span>}
+          {restaurant.deliveryFee && <span>Frais de livraison: {typeof restaurant.deliveryFee === 'number' ? `${restaurant.deliveryFee.toFixed(2)}€` : restaurant.deliveryFee}</span>}
+        </div>
+        {restaurant.address && <p className="mb-4">{restaurant.address}</p>}
+        {restaurant.description && <p className="text-gray-700">{restaurant.description}</p>}
+      </div>
+
+      {/* Catégories */}
+      {availableCategories.length > 0 && (
+          <div className="mb-8 overflow-x-auto">
+              <div className="flex space-x-4 pb-2">
+                  <button
+                      className={`px-4 py-2 rounded-full whitespace-nowrap ${selectedCategory === 'all'
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-200 text-gray-800'}`}
+                      onClick={() => setSelectedCategory('all')}
+                  >
+                      Tous
+                  </button>
+                  {availableCategories.map((category) => (
+                      <button
+                          key={category}
+                          className={`px-4 py-2 rounded-full whitespace-nowrap ${selectedCategory === category
+                              ? 'bg-primary text-white'
+                              : 'bg-gray-200 text-gray-800'}`}
+                          onClick={() => setSelectedCategory(category)}
+                      >
+                          {category}
+                      </button>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* Liste des plats */}
+      <h2 className="text-2xl font-semibold mb-4">Menu</h2>
+      {filteredDishes.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredDishes.map((dish) => (
+                  <div key={dish.id || dish._id} className="flex bg-white rounded-lg shadow-md overflow-hidden">
+                      <img
+                          src={dish.imageUrl || dish.image || 'https://via.placeholder.com/150'} // Fallback image
+                          alt={dish.name}
+                          className="w-24 h-24 object-cover flex-shrink-0"
+                      />
+                      <div className="p-4 flex-grow flex flex-col justify-between">
+                          <div>
+                              <h3 className="font-semibold">{dish.name}</h3>
+                              {dish.description && <p className="text-gray-600 text-sm mb-2">{dish.description}</p>}
+                          </div>
+                          <div className="flex justify-between items-center mt-2">
+                              <span className="font-medium">{dish.price ? `${dish.price.toFixed(2)}€` : 'Prix non disponible'}</span>
+                              <button
+                                  onClick={() => handleAddToCart(dish)}
+                                  className="bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark text-sm whitespace-nowrap"
+                              >
+                                  Ajouter
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              ))}
+          </div>
+      ) : (
+          <p>Aucun plat disponible pour cette catégorie.</p>
+      )}
+    </div>
+  );
+};
+
+export default RestaurantDetails; 
