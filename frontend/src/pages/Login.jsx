@@ -23,8 +23,20 @@ const Login = () => {
 
   const handleSubmit = async (values, { setSubmitting, setStatus }) => {
     try {
-      await login(values);
-      navigate('/');
+      const loggedInUser = await login(values);
+      switch (loggedInUser.role) {
+        case 'client':
+          navigate('/');
+          break;
+        case 'restaurant':
+          navigate('/restaurant-dashboard');
+          break;
+        case 'delivery':
+          navigate('/delivery-dashboard');
+          break;
+        default:
+          navigate('/');
+      }
     } catch (error) {
       setStatus(error.response?.data?.message || 'Erreur de connexion');
     } finally {

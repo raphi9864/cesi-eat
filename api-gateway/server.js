@@ -5,6 +5,11 @@ const cors = require('cors');
 const app = express();
 const PORT = 4000;
 
+// Log the target URLs at startup
+console.log(`Auth Service URL: ${process.env.AUTH_SERVICE_URL}`);
+console.log(`Restaurant Service URL: ${process.env.RESTAURANT_SERVICE_URL}`);
+// Add other service URLs if needed
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -30,12 +35,24 @@ const authenticateJWT = (req, res, next) => {
 };
 
 // Auth Service Routes (no authentication required)
-app.use('/api/auth', createProxyMiddleware({ 
+app.use('/api/auth', createProxyMiddleware({
   target: process.env.AUTH_SERVICE_URL,
   changeOrigin: true,
   pathRewrite: {
-    '^/api/auth': '/', 
+    '^/api/auth': '/',
   },
+  logLevel: 'debug',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[API Gateway /api/auth] Original URL: ${req.originalUrl} | Method: ${req.method}`);
+    console.log(`[API Gateway /api/auth] Forwarding path to target (${process.env.AUTH_SERVICE_URL}): ${proxyReq.path}`);
+  },
+  onError: (err, req, res) => {
+    console.error('[API Gateway /api/auth] Proxy error:', err);
+    // Send a generic server error response to the client
+    if (!res.headersSent) {
+      res.status(500).send('Proxy error');
+    }
+  }
 }));
 
 // Restaurant Service Routes (make publicly accessible)

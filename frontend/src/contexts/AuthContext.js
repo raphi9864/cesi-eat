@@ -3,6 +3,8 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000'; // Default for local dev
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -10,51 +12,52 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      checkAuthStatus(token);
-    } else {
-      setLoading(false);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      try {
+        const decodedUser = JSON.parse(atob(token.split('.')[1]));
+        setUser({ id: decodedUser.id, email: decodedUser.email, role: decodedUser.role });
+      } catch (e) {
+        console.error("Failed to decode token or token invalid", e);
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+      }
     }
+    setLoading(false);
   }, []);
-
-  const checkAuthStatus = async (token) => {
-    try {
-      const response = await axios.get('/api/users/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(response.data);
-    } catch (error) {
-      localStorage.removeItem('token');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const login = async (credentials) => {
     try {
-      const response = await axios.post('/api/auth/login', credentials);
+      // Use environment variable for API URL
+      const response = await axios.post(`${API_URL}/api/auth/login`, credentials);
       const { token, user } = response.data;
       localStorage.setItem('token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setUser(user);
-      return true;
+      return user;
     } catch (error) {
+      console.error("Login error in AuthContext:", error.response?.data || error.message);
+      if (error.response?.status === 401 || error.response?.status === 400) {
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+      }
       throw error;
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register', userData);
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setUser(user);
-      return true;
+      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
+      return response.data;
     } catch (error) {
+      console.error("Registration error in AuthContext:", error.response?.data || error.message);
       throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
