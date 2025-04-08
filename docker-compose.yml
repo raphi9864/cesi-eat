@@ -9,15 +9,15 @@ services:
     environment:
       - HOST=0.0.0.0
       - BROWSER=none
-      - REACT_APP_API_URL=http://api-gateway:4000
+      - REACT_APP_API_URL=http://localhost:4000
     depends_on:
-      - api-gateway
+      - nginx
     networks:
       - app-network
 
-  # API Gateway Service
-  api-gateway:
-    build: ./api-gateway
+  # Nginx Service
+  nginx:
+    build: ./nginx
     ports:
       - "4000:4000"
     depends_on:
@@ -25,12 +25,6 @@ services:
       - restaurant-service
       - client-service
       - delivery-service
-    environment:
-      - AUTH_SERVICE_URL=http://auth-service:5000
-      - RESTAURANT_SERVICE_URL=http://restaurant-service:5001
-      - CLIENT_SERVICE_URL=http://client-service:5002
-      - DELIVERY_SERVICE_URL=http://delivery-service:5003
-      - JWT_SECRET=your_secret_key_change_in_production
     networks:
       - app-network
 

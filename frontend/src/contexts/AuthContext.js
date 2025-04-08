@@ -3,8 +3,6 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000'; // Default for local dev
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,9 +24,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (credentials) => {
+    console.log("Login function called with:", credentials);
+  
     try {
-      // Use environment variable for API URL
-      const response = await axios.post(`${API_URL}/api/auth/login`, credentials);
+      console.log("About to make API call to:", "http://localhost:4000/api/auth/login");
+      const response = await axios.post('http://localhost:4000/api/auth/login', credentials);
+      console.log("API response received:", response);
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
+      const response = await axios.post(`http://localhost:4000/api/auth/register`, userData);
       return response.data;
     } catch (error) {
       console.error("Registration error in AuthContext:", error.response?.data || error.message);
