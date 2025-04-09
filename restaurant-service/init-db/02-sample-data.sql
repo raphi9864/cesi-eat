@@ -1,5 +1,5 @@
 -- Insert sample restaurant data
-INSERT INTO restaurants (name, address, cuisine, user_id, phone, email, opening_hours, images)
+INSERT INTO restaurants (name, address, cuisine, user_id, phone, email, opening_hours, images, description, delivery_time, delivery_fee)
 VALUES
   (
     'Pizza Palace', 
@@ -17,7 +17,10 @@ VALUES
       "saturday": {"open": "11:00", "close": "23:00"},
       "sunday": {"open": "11:00", "close": "22:00"}
     }',
-    ARRAY['pizza1.jpg', 'pizza2.jpg']
+    ARRAY['pizza1.jpg', 'pizza2.jpg'],
+    'Authentic Italian cuisine in a cozy atmosphere',
+    '30-45 min',
+    2.99
   ),
   (
     'Burger Barn', 
@@ -35,7 +38,10 @@ VALUES
       "saturday": {"open": "11:00", "close": "22:00"},
       "sunday": {"open": "12:00", "close": "20:00"}
     }',
-    ARRAY['burger1.jpg']
+    ARRAY['burger1.jpg'],
+    'Best burgers in town, made with 100% fresh beef',
+    '20-35 min',
+    3.99
   ),
   (
     'Sushi Spot', 
@@ -53,7 +59,10 @@ VALUES
       "saturday": {"open": "16:00", "close": "23:00"},
       "sunday": {"open": "16:00", "close": "22:00"}
     }',
-    ARRAY['sushi1.jpg', 'sushi2.jpg', 'sushi3.jpg']
+    ARRAY['sushi1.jpg', 'sushi2.jpg', 'sushi3.jpg'],
+    'Fresh and authentic Japanese sushi',
+    '40-55 min',
+    4.99
   );
 
 -- Insert sample dishes for Pizza Palace

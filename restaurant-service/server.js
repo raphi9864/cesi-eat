@@ -33,16 +33,36 @@ app.get('/restaurants', async (req, res) => {
   }
 });
 
-// Get restaurant by ID
+// Get restaurant by ID with dishes
 app.get('/restaurants/:id', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM restaurants WHERE id = $1', [req.params.id]);
+    // Fetch restaurant details
+    const restaurantResult = await pool.query(
+      `SELECT id, name, address, cuisine, images, rating, 
+              review_count, description, delivery_time, delivery_fee, 
+              opening_hours 
+       FROM restaurants 
+       WHERE id = $1`,
+      [req.params.id]
+    );
     
-    if (result.rows.length === 0) {
+    if (restaurantResult.rows.length === 0) {
       return res.status(404).json({ message: 'Restaurant not found' });
     }
+
+    // Fetch restaurant's dishes
+    const dishesResult = await pool.query(
+      'SELECT id, name, description, price, image, category, is_available FROM dishes WHERE restaurant_id = $1',
+      [req.params.id]
+    );
+
+    // Combine restaurant data with its dishes
+    const restaurantData = {
+      ...restaurantResult.rows[0],
+      dishes: dishesResult.rows
+    };
     
-    res.json(result.rows[0]);
+    res.json(restaurantData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });

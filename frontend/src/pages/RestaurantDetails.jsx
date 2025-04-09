@@ -17,8 +17,14 @@ const RestaurantDetails = () => {
       setError(null);
 
       try {
-        const response = await apiClient.get(`/restaurants/${id}`);
-        setRestaurantData(response.data);
+        // Fetch restaurant details
+        const restaurantResponse = await apiClient.get(`/restaurants/${id}`);
+        const dishesResponse = await apiClient.get(`/restaurants/${id}/dishes`);
+        
+        setRestaurantData({
+          ...restaurantResponse.data,
+          dishes: dishesResponse.data
+        });
       } catch (err) {
         console.error('Error fetching restaurant details:', err);
         if (err.response) {
@@ -95,7 +101,13 @@ const RestaurantDetails = () => {
           {restaurant.rating && (
               <div className="flex items-center">
                   <span className="text-yellow-500 mr-1">★</span>
-                  <span>{restaurant.rating.toFixed(1)}</span>
+                  <span>
+                      {typeof restaurant.rating === 'string' 
+                          ? parseFloat(restaurant.rating).toFixed(1) 
+                          : typeof restaurant.rating === 'number' 
+                              ? restaurant.rating.toFixed(1) 
+                              : 'N/A'}
+                  </span>
               </div>
           )}
           {restaurant.rating && <span>•</span>}
@@ -151,7 +163,13 @@ const RestaurantDetails = () => {
                               {dish.description && <p className="text-gray-600 text-sm mb-2">{dish.description}</p>}
                           </div>
                           <div className="flex justify-between items-center mt-2">
-                              <span className="font-medium">{dish.price ? `${dish.price.toFixed(2)}€` : 'Prix non disponible'}</span>
+                              <span className="font-medium">
+                                  {typeof dish.price === 'string' 
+                                      ? `${parseFloat(dish.price).toFixed(2)}€`
+                                      : dish.price 
+                                          ? `${dish.price.toFixed(2)}€` 
+                                          : 'Prix non disponible'}
+                              </span>
                               <button
                                   onClick={() => handleAddToCart(dish)}
                                   className="bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark text-sm whitespace-nowrap"
@@ -170,4 +188,4 @@ const RestaurantDetails = () => {
   );
 };
 
-export default RestaurantDetails; 
+export default RestaurantDetails;

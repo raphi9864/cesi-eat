@@ -1,5 +1,3 @@
--- Create required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create restaurants table
 CREATE TABLE IF NOT EXISTS restaurants (
@@ -13,6 +11,9 @@ CREATE TABLE IF NOT EXISTS restaurants (
   images TEXT[],
   rating DECIMAL(3, 2) DEFAULT 0,
   review_count INTEGER DEFAULT 0,
+  description TEXT,
+  delivery_time VARCHAR(50),
+  delivery_fee DECIMAL(10, 2),
   opening_hours JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
