@@ -2,12 +2,10 @@ const express = require('express');
 const { Pool } = require('pg'); // Use pg Pool
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const cors = require('cors');
 const app = express();
 const PORT = 5000;
 
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Connect to PostgreSQL
