@@ -404,6 +404,59 @@ app.post('/restaurants/:restaurantId/orders/:orderId/reject', async (req, res) =
   }
 });
 
+// Mark an order as ready for pickup
+app.post('/restaurants/:restaurantId/orders/:orderId/ready', async (req, res) => {
+  const { restaurantId, orderId } = req.params;
+  const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+  
+  try {
+    // Make sure the restaurant exists
+    const restaurantResult = await pool.query('SELECT * FROM restaurants WHERE id = $1', [restaurantId]);
+    
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Get the order to verify it belongs to this restaurant and has the correct status
+    try {
+      const orderResponse = await axios.get(`${clientServiceUrl}/orders/${orderId}`);
+      const order = orderResponse.data;
+      
+      if (order.restaurant_id !== parseInt(restaurantId)) {
+        return res.status(403).json({ message: 'This order does not belong to this restaurant' });
+      }
+      
+      if (order.status !== 'processing') {
+        return res.status(400).json({ 
+          message: `Cannot mark this order as ready. Current status: ${order.status}` 
+        });
+      }
+      
+      // Update the order status to ready_for_pickup
+      const updateResponse = await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'ready_for_pickup'
+      });
+      
+      res.status(200).json({
+        message: 'Order marked as ready for pickup',
+        order: updateResponse.data
+      });
+    } catch (error) {
+      console.error('Error marking order as ready:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      res.status(500).json({ 
+        message: 'Failed to mark order as ready',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP' });

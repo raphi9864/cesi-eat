@@ -576,6 +576,219 @@ app.post('/orders/:orderId/reject', async (req, res) => {
   }
 });
 
+// Mark an order as delivered with verification code
+app.post('/orders/:orderId/verify-delivery', async (req, res) => {
+  const { orderId } = req.params;
+  const { deliveryPersonId, verificationCode } = req.body;
+  
+  console.log(`Received delivery verification request for order ${orderId}`);
+  
+  if (!deliveryPersonId || !verificationCode) {
+    return res.status(400).json({ 
+      message: 'Delivery person ID and verification code are required' 
+    });
+  }
+
+  let client;
+  
+  try {
+    // Connect to the database
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    // Verify the delivery person exists
+    const deliveryPersonCheck = await client.query(
+      `SELECT * FROM delivery_persons WHERE user_id = $1`,
+      [deliveryPersonId]
+    );
+    
+    if (deliveryPersonCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Delivery person not found' });
+    }
+    
+    // Get the order to verify verification code and status
+    const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+    
+    try {
+      // Get order details
+      const orderResponse = await axios.get(`${clientServiceUrl}/orders/${orderId}`);
+      const order = orderResponse.data;
+      
+      if (!order) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      
+      // Check if the order is assigned to this delivery person
+      if (String(order.delivery_id) !== String(deliveryPersonId)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ 
+          message: 'This order is not assigned to this delivery person' 
+        });
+      }
+      
+      // Check if the order status is ready_for_pickup or on_delivery
+      if (order.status !== 'ready_for_pickup' && order.status !== 'on_delivery') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          message: `Order cannot be delivered in its current status: ${order.status}` 
+        });
+      }
+      
+      // Verify the verification code
+      if (!order.verification_code || order.verification_code !== verificationCode) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+      
+      // Update delivery record to mark as delivered
+      await client.query(
+        `UPDATE deliveries 
+         SET status = 'delivered', delivered_at = NOW() 
+         WHERE order_id = $1 AND delivery_person_id = $2`,
+        [orderId, deliveryPersonId]
+      );
+      
+      // Update order status
+      await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'delivered'
+      });
+      
+      // Free up the delivery person
+      await client.query(
+        `UPDATE delivery_persons 
+         SET is_available = true, current_order_id = NULL 
+         WHERE user_id = $1`,
+        [deliveryPersonId]
+      );
+      
+      await client.query('COMMIT');
+      
+      res.status(200).json({ 
+        message: 'Order delivery verified successfully',
+        orderId
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error(`Error verifying delivery for order ${orderId}:`, error.message);
+      
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      
+      res.status(500).json({ 
+        message: 'Failed to verify delivery',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error(`Error handling delivery verification:`, error.message);
+    res.status(500).json({ 
+      message: 'Internal server error during delivery verification',
+      error: error.message 
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// Also add endpoint to update order status to on_delivery when heading to client
+app.post('/orders/:orderId/start-delivery', async (req, res) => {
+  const { orderId } = req.params;
+  const { deliveryPersonId } = req.body;
+  
+  console.log(`Received start delivery request for order ${orderId}`);
+  
+  if (!deliveryPersonId) {
+    return res.status(400).json({ message: 'Delivery person ID is required' });
+  }
+
+  let client;
+  
+  try {
+    // Connect to the database
+    client = await pool.connect();
+    await client.query('BEGIN');
+    
+    // Get the order to verify status
+    const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+    
+    try {
+      // Get order details
+      const orderResponse = await axios.get(`${clientServiceUrl}/orders/${orderId}`);
+      const order = orderResponse.data;
+      
+      if (!order) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      
+      // Check if the order is assigned to this delivery person
+      if (String(order.delivery_id) !== String(deliveryPersonId)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ 
+          message: 'This order is not assigned to this delivery person' 
+        });
+      }
+      
+      // Check if the order status is ready_for_pickup
+      if (order.status !== 'ready_for_pickup') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          message: `Order is not ready for pickup. Current status: ${order.status}` 
+        });
+      }
+      
+      // Update delivery record to mark as on_delivery
+      await client.query(
+        `UPDATE deliveries 
+         SET status = 'on-delivery', picked_up_at = NOW() 
+         WHERE order_id = $1 AND delivery_person_id = $2`,
+        [orderId, deliveryPersonId]
+      );
+      
+      // Update order status
+      await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'on_delivery'
+      });
+      
+      await client.query('COMMIT');
+      
+      res.status(200).json({ 
+        message: 'Delivery started successfully',
+        orderId
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error(`Error starting delivery for order ${orderId}:`, error.message);
+      
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      
+      res.status(500).json({ 
+        message: 'Failed to start delivery',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error(`Error handling delivery start:`, error.message);
+    res.status(500).json({ 
+      message: 'Internal server error during delivery start',
+      error: error.message 
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {

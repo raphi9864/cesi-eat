@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_notes TEXT,
   payment_method VARCHAR(50) NOT NULL,
   payment_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  verification_code VARCHAR(6),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

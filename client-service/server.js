@@ -272,6 +272,15 @@ app.patch('/orders/:orderId/status', async (req, res) => {
       paramIndex++;
     }
     
+    // Generate verification code if status is ready_for_pickup
+    if (status === 'ready_for_pickup') {
+      // Generate a random 6-digit code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      updateQuery += `, verification_code = $${paramIndex}`;
+      queryParams.push(verificationCode);
+      paramIndex++;
+    }
+    
     updateQuery += ` WHERE id = $${paramIndex} RETURNING *`;
     queryParams.push(req.params.orderId);
     
