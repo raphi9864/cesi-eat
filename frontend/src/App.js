@@ -43,11 +43,11 @@ function App() {
 
               {/* Routes par rôle */}
               <Route element={<RoleProtectedRoute roles={['livreur']} />}>
-                <Route path="/livreur" element={<LivreurDashboard />} />
+                <Route path="/delivery-dashboard" element={<LivreurDashboard />} />
               </Route>
 
-              <Route element={<RoleProtectedRoute roles={['restaurateur']} />}>
-                <Route path="/restaurateur" element={<RestaurateurDashboard />} />
+              <Route element={<RoleProtectedRoute roles={['restaurant']} />}>
+                <Route path="/restaurant-dashboard" element={<RestaurateurDashboard />} />
               </Route>
 
               <Route element={<RoleProtectedRoute roles={['admin']} />}>

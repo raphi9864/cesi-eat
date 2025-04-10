@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('User object set in AuthContext:', user);
       setUser(user);
       return user;
     } catch (error) {

@@ -13,10 +13,16 @@ const RoleProtectedRoute = ({ roles }) => {
     return <Navigate to="/login" />;
   }
 
+  // Log to check user object and required roles
+  console.log('RoleProtectedRoute Check - User:', user);
+  console.log('RoleProtectedRoute Check - Required Roles:', roles);
+
   if (!roles.includes(user.role)) {
+    console.log(`RoleProtectedRoute: Role mismatch. User role "${user.role}" is not in required roles [${roles.join(', ')}]. Redirecting.`);
     return <Navigate to="/" />;
   }
 
+  console.log('RoleProtectedRoute: Role matched. Access granted.');
   return <Outlet />;
 };
 

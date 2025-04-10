@@ -4,11 +4,12 @@
     "description": "Restaurant service for food delivery app",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js"
+        "start": "node server.js"
     },
     "dependencies": {
-      "express": "^4.17.1",
-      "pg": "^8.7.1",
-      "cors": "^2.8.5"
+        "axios": "^1.8.4",
+        "cors": "^2.8.5",
+        "express": "^4.17.1",
+        "pg": "^8.7.1"
     }
-  }
+}
