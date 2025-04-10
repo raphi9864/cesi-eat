@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       try {
         const decodedUser = JSON.parse(atob(token.split('.')[1]));
-        setUser({ id: decodedUser.id, email: decodedUser.email, role: decodedUser.role });
+        setUser({ id: decodedUser.id, email: decodedUser.email, role: decodedUser.role, address: "Adresse par défaut" });
       } catch (e) {
         console.error("Failed to decode token or token invalid", e);
         localStorage.removeItem('token');
@@ -34,8 +34,15 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       console.log('User object set in AuthContext:', user);
-      setUser(user);
-      return user;
+      
+      // Set user with a default address
+      const userObj = { 
+        ...user, 
+        address: "Adresse par défaut" // Add a default address
+      };
+      
+      setUser(userObj);
+      return userObj;
     } catch (error) {
       console.error("Login error in AuthContext:", error.response?.data || error.message);
       if (error.response?.status === 401 || error.response?.status === 400) {

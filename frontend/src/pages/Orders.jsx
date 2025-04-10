@@ -1110,7 +1110,7 @@ const Orders = () => {
   const getOrderStatusTimeline = (status) => {
     const steps = [
       { key: 'pending', label: 'Commande reçue', icon: '📋' },
-      { key: 'waiting_restaurant_validation', label: 'En attente validation restaurant', icon: '🔄' },
+      { key: 'waiting_restaurant_validation', label: 'Validation restaurant', icon: '🔄' },
       { key: 'processing', label: 'En préparation', icon: '👨‍🍳' },
       { key: 'ready_for_pickup', label: 'Prêt pour livraison', icon: '📦' },
       { key: 'on_delivery', label: 'En cours de livraison', icon: '🚚' },
@@ -1133,70 +1133,114 @@ const Orders = () => {
     
     return (
       <div className="mt-6 mb-2">
-        <div className="w-full bg-gray-100 rounded-lg p-4">
-          <ol className="relative flex flex-col md:flex-row md:items-center">
-            {steps.map((step, idx) => {
-              const isActive = idx <= currentStepIndex;
-              const isCurrentStep = idx === currentStepIndex;
+        <div className="w-full bg-gray-50 rounded-lg p-4">
+          {/* Desktop Timeline */}
+          <div className="hidden md:block">
+            <div className="relative">
+              {/* Progress Line */}
+              <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 rounded-full"></div>
+              <div 
+                className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 rounded-full transition-all duration-300"
+                style={{ width: `${currentStepIndex === steps.length - 1 ? 100 : (currentStepIndex / (steps.length - 1)) * 100}%` }}
+              ></div>
               
-              return (
-                <li key={step.key} className={`flex-1 ${idx < steps.length - 1 ? 'mb-6 md:mb-0' : ''}`}>
-                  <div className="flex items-center md:block md:text-center">
-                    {/* Step Indicator */}
-                    <div className={`
-                      flex items-center justify-center w-10 h-10 rounded-full
-                      ${isActive 
-                        ? isCurrentStep 
-                          ? 'bg-primary text-white ring-4 ring-primary-light animate-pulse' 
-                          : 'bg-primary text-white' 
-                        : 'bg-gray-200 text-gray-500'
-                      } mb-0 md:mb-2 md:mx-auto z-10
-                    `}>
-                      <span>{step.icon}</span>
-                    </div>
-                    
-                    {/* Step Label */}
-                    <div className="ml-3 md:ml-0">
-                      <h3 className={`
-                        font-medium text-sm 
-                        ${isActive ? 'text-gray-900' : 'text-gray-500'}
+              {/* Steps */}
+              <div className="relative flex justify-between">
+                {steps.map((step, idx) => {
+                  const isActive = idx <= currentStepIndex;
+                  const isCurrentStep = idx === currentStepIndex;
+                  
+                  return (
+                    <div key={step.key} className="flex flex-col items-center text-center">
+                      <div className={`
+                        z-10 flex items-center justify-center w-12 h-12 rounded-full border-2
+                        ${isActive 
+                          ? isCurrentStep
+                            ? 'border-primary bg-primary text-white' 
+                            : 'border-primary bg-white text-primary'
+                          : 'border-gray-300 bg-white text-gray-400'
+                        }
+                        ${isCurrentStep ? 'shadow-md' : ''}
+                        mb-2 transition-all duration-200
+                      `}>
+                        <span className="text-lg">{step.icon}</span>
+                      </div>
+                      <span className={`
+                        text-sm font-medium block max-w-[80px] mx-auto
+                        ${isActive 
+                          ? isCurrentStep
+                            ? 'text-primary' 
+                            : 'text-gray-800'
+                          : 'text-gray-400'
+                        }
                       `}>
                         {step.label}
-                      </h3>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Timeline */}
+          <div className="md:hidden">
+            <div className="space-y-4">
+              {steps.map((step, idx) => {
+                const isActive = idx <= currentStepIndex;
+                const isCurrentStep = idx === currentStepIndex;
+                const isLastStep = idx === steps.length - 1;
+                
+                return (
+                  <div key={step.key} className="flex items-start gap-4">
+                    {/* Left side with icon and connector */}
+                    <div className="flex flex-col items-center">
+                      <div className={`
+                        z-10 flex items-center justify-center w-10 h-10 rounded-full border-2
+                        ${isActive 
+                          ? isCurrentStep
+                            ? 'border-primary bg-primary text-white' 
+                            : 'border-primary bg-white text-primary'
+                          : 'border-gray-300 bg-white text-gray-400'
+                        }
+                        ${isCurrentStep ? 'shadow' : ''}
+                      `}>
+                        <span>{step.icon}</span>
+                      </div>
                       
-                      {isCurrentStep && (
-                        <p className="text-xs text-primary-dark font-medium md:hidden">En cours</p>
+                      {!isLastStep && (
+                        <div className={`
+                          h-full w-0.5 my-1
+                          ${isActive && idx < currentStepIndex ? 'bg-primary' : 'bg-gray-300'}
+                        `} style={{ height: '20px' }}></div>
                       )}
                     </div>
                     
-                    {/* Connector Line - Only visible on desktop */}
-                    {idx < steps.length - 1 && (
-                      <div className={`
-                        hidden md:block absolute h-0.5 top-5 
-                        ${isActive && idx < currentStepIndex ? 'bg-primary' : 'bg-gray-300'}`} 
-                        style={{ 
-                          left: `${(idx * 100) / (steps.length - 1) + 5}%`, 
-                          right: `${100 - ((idx + 1) * 100) / (steps.length - 1) + 5}%` 
-                        }}
-                      />
-                    )}
+                    {/* Right side with text */}
+                    <div className="pt-1 flex-grow">
+                      <span className={`
+                        text-sm font-medium block
+                        ${isActive 
+                          ? isCurrentStep
+                            ? 'text-primary' 
+                            : 'text-gray-800'
+                          : 'text-gray-400'
+                        }
+                      `}>
+                        {step.label}
+                      </span>
+                      {isCurrentStep && (
+                        <span className="text-xs text-primary-dark font-medium">En cours</span>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Vertical connector - Only visible on mobile */}
-                  {idx < steps.length - 1 && (
-                    <div className={`
-                      md:hidden absolute h-full w-0.5 left-5 -ml-px top-0 mt-10
-                      ${isActive && idx < currentStepIndex ? 'bg-primary' : 'bg-gray-300'}`} 
-                      style={{ height: 'calc(100% - 2.5rem)' }}
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+                );
+              })}
+            </div>
+          </div>
           
           {/* Current Status Text */}
-          <div className="mt-4 text-center hidden md:block">
+          <div className="mt-6 text-center">
             <p className={`
               inline-flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full
               ${status === 'pending' ? 'bg-blue-100 text-blue-800' : 
@@ -1385,7 +1429,7 @@ const Orders = () => {
                     disabled={cancellingOrderId === order.id}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                     {cancellingOrderId === order.id ? 'Annulation en cours...' : 'Annuler la commande'}
                   </button>
