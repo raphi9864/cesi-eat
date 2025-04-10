@@ -60,22 +60,27 @@ const RestaurateurDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch all data concurrently
-        const [restaurantRes, menuRes, ordersRes] = await Promise.all([
-          apiClient.get(`/restaurants/${user.id}`), // Fetch restaurant details
-          apiClient.get(`/restaurants/${user.id}/dishes`), // Fetch menu items (dishes)
-          apiClient.get(`/orders/restaurant/${user.id}`) // Fetch all orders for this restaurant
+        // D'abord récupérer les informations du restaurant
+        const restaurantRes = await apiClient.get(`/restaurants/user/${user.id}`);
+        const restaurantData = restaurantRes.data;
+        setRestaurantDetails(restaurantData);
+        
+        // Ensuite utiliser l'ID du restaurant pour récupérer les plats et commandes
+        const restaurantId = restaurantData.id;
+        
+        // Récupérer les plats et commandes avec l'ID correct du restaurant
+        const [menuRes, ordersRes] = await Promise.all([
+          apiClient.get(`/restaurants/${restaurantId}/dishes`),
+          apiClient.get(`/orders/restaurant/${restaurantId}`)
         ]);
-
-        setRestaurantDetails(restaurantRes.data);
+        
         setMenu(menuRes.data);
         setAllOrders(ordersRes.data);
-
+        
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         let errorMessage = 'Impossible de charger les données du tableau de bord.';
         if (err.response) {
-          // Try to get more specific error
           errorMessage += ` (${err.response.status}): ${err.response.data?.message || err.message}`;
         } else if (err.request) {
           errorMessage += ' Problème de réseau ou service API indisponible.';

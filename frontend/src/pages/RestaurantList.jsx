@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
+import placeholderImages from '../assets/images/placeholders';
 
 const RestaurantList = () => {
   const [restaurants, setRestaurants] = useState([]);
@@ -47,9 +48,14 @@ const RestaurantList = () => {
           <Link to={`/restaurants/${restaurant.id || restaurant._id}`} key={restaurant.id || restaurant._id}>
             <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
               <img
-                src={restaurant.images?.[0] || restaurant.imageUrl || 'https://via.placeholder.com/300x200'}
+                src={restaurant.images?.[0] || restaurant.imageUrl || restaurant.image || placeholderImages.restaurant}
                 alt={restaurant.name}
                 className="w-full h-40 object-cover group-hover:opacity-90 transition-opacity duration-200"
+                onError={(e) => {
+                  if (e.target.src !== placeholderImages.restaurant) {
+                    e.target.src = placeholderImages.restaurant;
+                  }
+                }}
               />
               <div className="p-4">
                 <h2 className="text-xl font-semibold mb-2">{restaurant.name}</h2>

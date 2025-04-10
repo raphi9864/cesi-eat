@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
 import { useCart } from '../contexts/CartContext';
+import placeholderImages from '../assets/images/placeholders';
 
 const RestaurantDetails = () => {
   const { id } = useParams();
@@ -83,15 +84,38 @@ const RestaurantDetails = () => {
     ? categories 
     : [...new Set(dishes.map(d => d.category))].filter(Boolean);
 
+  // Fonction pour choisir l'image de secours selon le type de cuisine
+  const getFallbackImageByCuisine = (cuisine) => {
+    if (!cuisine) return placeholderImages.restaurantBanner;
+    
+    const lowerCuisine = cuisine.toLowerCase();
+    
+    if (lowerCuisine.includes('thai')) return placeholderImages.thai;
+    if (lowerCuisine.includes('indian') || lowerCuisine.includes('curry')) return placeholderImages.curry;
+    if (lowerCuisine.includes('italian') || lowerCuisine.includes('pasta') || lowerCuisine.includes('pizza')) return placeholderImages.italian;
+    if (lowerCuisine.includes('japan') || lowerCuisine.includes('sushi') || lowerCuisine.includes('asiat')) return placeholderImages.japanese;
+    if (lowerCuisine.includes('bbq') || lowerCuisine.includes('barbecue') || lowerCuisine.includes('grill')) return placeholderImages.bbq;
+    if (lowerCuisine.includes('vegan') || lowerCuisine.includes('vegetarian') || lowerCuisine.includes('veggie')) return placeholderImages.vegan;
+    if (lowerCuisine.includes('seafood') || lowerCuisine.includes('fish') || lowerCuisine.includes('sea')) return placeholderImages.seafood;
+    if (lowerCuisine.includes('mediterranean') || lowerCuisine.includes('greek') || lowerCuisine.includes('lebanese')) return placeholderImages.mediterranean;
+    
+    return placeholderImages.restaurantBanner;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* En-tête du restaurant */}
       <div className="mb-8">
         <div className="rounded-lg overflow-hidden shadow-md mb-4">
           <img 
-            src={restaurant.imageUrl || restaurant.image || 'https://via.placeholder.com/800x300'} // Fallback image
+            src={restaurant.imageUrl || restaurant.image || restaurant.images?.[0] || getFallbackImageByCuisine(restaurant.cuisine)} 
             alt={restaurant.name}
             className="w-full h-64 object-cover"
+            onError={(e) => {
+              if (e.target.src !== getFallbackImageByCuisine(restaurant.cuisine)) {
+                e.target.src = getFallbackImageByCuisine(restaurant.cuisine);
+              }
+            }}
           />
         </div>
         <h1 className="text-3xl font-bold mb-2">{restaurant.name}</h1>
@@ -153,9 +177,14 @@ const RestaurantDetails = () => {
               {filteredDishes.map((dish) => (
                   <div key={dish.id || dish._id} className="flex bg-white rounded-lg shadow-md overflow-hidden">
                       <img
-                          src={dish.image || 'https://via.placeholder.com/150'} // Use dish.image directly
+                          src={dish.imageUrl || dish.image || placeholderImages.dish} 
                           alt={dish.name}
                           className="w-24 h-24 object-cover flex-shrink-0"
+                          onError={(e) => {
+                            if (e.target.src !== placeholderImages.dish) {
+                              e.target.src = placeholderImages.dish;
+                            }
+                          }}
                       />
                       <div className="p-4 flex-grow flex flex-col justify-between">
                           <div>

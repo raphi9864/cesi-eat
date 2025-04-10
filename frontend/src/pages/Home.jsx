@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { StarIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import apiClient from '../api/axiosConfig';
+import placeholderImages from '../assets/images/placeholders';
 
 import foodieHubIllustration from '../assets/images/Foodiehub_illustration.png';
 
@@ -102,9 +103,14 @@ const Home = () => {
                 <div className="flex-1 flex justify-center md:justify-end">
                   <div className="bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-sm border border-gray-200">
                     <img 
-                      src={featuredRestaurant.images?.[0] || featuredRestaurant.imageUrl || 'https://via.placeholder.com/400x200.png?text=Image+du+Restaurant'} 
+                      src={featuredRestaurant.images?.[0] || featuredRestaurant.imageUrl || featuredRestaurant.image || placeholderImages.featured} 
                       alt={featuredRestaurant.name}
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        if (e.target.src !== placeholderImages.featured) {
+                          e.target.src = placeholderImages.featured;
+                        }
+                      }}
                     />
                     <div className="bg-white p-4">
                       <div className="flex justify-between items-center mb-3">
@@ -151,9 +157,14 @@ const Home = () => {
                     <Link key={resto.id} to={`/restaurants/${resto.id}`} className="block group">
                        <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 group-hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
                          <img 
-                           src={resto.images?.[0] || resto.imageUrl || 'https://via.placeholder.com/300x200.png?text=Restaurant'} 
+                           src={resto.images?.[0] || resto.imageUrl || resto.image || placeholderImages.restaurant} 
                            alt={resto.name} 
                            className="w-full h-40 object-cover"
+                           onError={(e) => {
+                             if (e.target.src !== placeholderImages.restaurant) {
+                               e.target.src = placeholderImages.restaurant;
+                             }
+                           }}
                          />
                          <div className="p-4 flex-grow flex flex-col">
                            <h3 className="font-semibold text-lg mb-1 text-gray-900">{resto.name}</h3>

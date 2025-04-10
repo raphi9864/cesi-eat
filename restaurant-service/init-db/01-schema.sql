@@ -1,11 +1,10 @@
-
 -- Create restaurants table
 CREATE TABLE IF NOT EXISTS restaurants (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   address TEXT NOT NULL,
   cuisine VARCHAR(100) NOT NULL,
-  user_id VARCHAR(50) NOT NULL UNIQUE,
+  user_id INTEGER NOT NULL UNIQUE,
   phone VARCHAR(50) NOT NULL,
   email VARCHAR(255) NOT NULL,
   images TEXT[],
