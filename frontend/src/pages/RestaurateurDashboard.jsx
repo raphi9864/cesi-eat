@@ -60,13 +60,13 @@ const RestaurateurDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        // D'abord récupérer les informations du restaurant
-        const restaurantRes = await apiClient.get(`/restaurants/user/${user.id}`);
+        // D'abord récupérer les informations du restaurant avec l'email comme user_id
+        const restaurantRes = await apiClient.get(`/restaurants/user/${user.email}`);
         const restaurantData = restaurantRes.data;
         setRestaurantDetails(restaurantData);
         
-        // Ensuite utiliser l'ID du restaurant pour récupérer les plats et commandes
-        const restaurantId = restaurantData.id;
+        // Utiliser l'ID du restaurant (id dans la table restaurants) pour récupérer les plats et commandes
+        const restaurantId = restaurantData.id; // Changé de user_id à id
         
         // Récupérer les plats et commandes avec l'ID correct du restaurant
         const [menuRes, ordersRes] = await Promise.all([
@@ -922,4 +922,4 @@ const RestaurateurDashboard = () => {
   );
 };
 
-export default RestaurateurDashboard; 
+export default RestaurateurDashboard;
