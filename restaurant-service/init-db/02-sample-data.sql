@@ -190,6 +190,36 @@ VALUES
     4.8,
     310
   ),
+  (
+    'Seafood Shack', 
+    '707 Ocean Dr, Anytown', 
+    'Seafood', 
+    13, 
+    '555-777-8888', 
+    'info@seafoodshack.sea',
+    '{"thu_sun": {"open": "15:00", "close": "21:00"}}',
+    ARRAY['https://images.unsplash.com/photo-1559737558-549a5a71b64b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80'],
+    'Fresh catches and classic seafood platters', 
+    '35-50 min', 
+    5.99,
+    4.3,
+    115
+  ),
+  (
+    'Mediterranean Delight', 
+    '808 Olive St, Someville', 
+    'Mediterranean', 
+    14, 
+    '555-888-9999', 
+    'delight@mediterranean.com',
+    '{"all_days": {"open": "11:00", "close": "22:00"}}',
+    ARRAY['https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80'],
+    'Healthy and flavorful Mediterranean cuisine', 
+    '25-40 min', 
+    2.99,
+    4.7,
+    255
+  );
 
 -- Insert sample dishes for Taco Fiesta (ID 4)
 INSERT INTO dishes (restaurant_id, name, description, price, image, category)
@@ -232,3 +262,17 @@ VALUES
   (9, 'Ribs Platter', 'Slow-smoked ribs with BBQ sauce, coleslaw, and cornbread', 22.99, 'https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1169&q=80', 'Platters'),
   (9, 'Pulled Pork Sandwich', 'Slow-cooked pulled pork on a brioche bun with pickles', 13.99, 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1780&q=80', 'Sandwiches'),
   (9, 'Brisket', 'Smoked beef brisket with house sauce', 18.99, 'https://images.unsplash.com/photo-1623238913973-21c768c8dc4b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1974&q=80', 'Meats');
+
+-- Insert sample dishes for Seafood Shack (ID 10)
+INSERT INTO dishes (restaurant_id, name, description, price, image, category)
+VALUES
+  (10, 'Fish and Chips', 'Battered cod served with fries and tartar sauce', 17.99, 'https://images.unsplash.com/photo-1579887829287-1b95100c68b0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80', 'Main'),
+  (10, 'Grilled Salmon', 'Grilled salmon fillet with roasted vegetables', 22.99, 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80', 'Main'),
+  (10, 'Clam Chowder (Cup)', 'Creamy New England style clam chowder', 7.99, 'https://images.unsplash.com/photo-1542817809-15940575195a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=739&q=80', 'Soups');
+
+-- Insert sample dishes for Mediterranean Delight (ID 11)
+INSERT INTO dishes (restaurant_id, name, description, price, image, category)
+VALUES
+  (11, 'Chicken Shawarma Plate', 'Marinated chicken shawarma served with rice, salad, and pita', 15.99, 'https://images.unsplash.com/photo-1604013129990-675199d8d97a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80', 'Plates'),
+  (11, 'Falafel Wrap', 'Crispy falafel balls with hummus, tahini, and veggies in a pita', 11.99, 'https://images.unsplash.com/photo-1562802378-063ec186a725?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=764&q=80', 'Wraps'),
+  (11, 'Greek Salad', 'Tomatoes, cucumbers, olives, feta cheese, and Greek dressing', 9.99, 'https://images.unsplash.com/photo-1587437406329-7c84f93159e8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80', 'Salads');
