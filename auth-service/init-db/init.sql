@@ -26,4 +26,18 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'restaurant@example.com');
 
 INSERT INTO users (email, password, role)
 SELECT 'delivery@example.com', '$2b$10$1kyzn1Rg2yGCV8c2UzCpH.RVTJANtg4HHLdeLp.DS0QHmdMDouwqO', 'delivery'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'delivery@example.com'); 
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'delivery@example.com');
+
+-- Insert restaurant accounts - Pizza Palace, Burger Barn, and Sushi Spot
+-- Passwords are the lowercase name of the restaurant (e.g., "pizzapalace")
+INSERT INTO users (email, password, role)
+SELECT 'pizzapalace@example.com', '$2b$10$FpvoQ9RVGCid1Jy7L1ZXuutmHMM9YE3Tag54lx5RY2XjgfwZgAGWG', 'restaurant'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'pizzapalace@example.com');
+
+INSERT INTO users (email, password, role)
+SELECT 'burgerbarn@example.com', '$2b$10$/2w6oJ30ju8/Z5Id1Zanpu21Bbspj2FQS9cfmZhdSwZ46IOMtwOPy', 'restaurant'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'burgerbarn@example.com');
+
+INSERT INTO users (email, password, role)
+SELECT 'sushispot@example.com', '$2b$10$krWTgiiJnMFOKdrZVL/XlOMPINpvnxangNyxsvQ5nlDfYhvT4FwdW', 'restaurant'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'sushispot@example.com'); 

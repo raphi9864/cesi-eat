@@ -5,7 +5,7 @@ VALUES
     'Pizza Palace', 
     '123 Main St, Anytown', 
     'Italian', 
-    'rest1', 
+    'pizzapalace@example.com', 
     '555-123-4567', 
     'info@pizzapalace.com',
     '{
@@ -26,7 +26,7 @@ VALUES
     'Burger Barn', 
     '456 Oak St, Someville', 
     'American', 
-    'rest2', 
+    'burgerbarn@example.com', 
     '555-987-6543', 
     'hello@burgerbarn.com',
     '{
@@ -47,7 +47,7 @@ VALUES
     'Sushi Spot', 
     '789 Pine St, Othertown', 
     'Japanese', 
-    'rest3', 
+    'sushispot@example.com', 
     '555-567-8901', 
     'contact@sushispot.com',
     '{

@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const axios = require('axios');
 const app = express();
 const PORT = 5001;
 
@@ -233,7 +234,6 @@ app.post('/orders/:orderId/validate', async (req, res) => {
     const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
     
     try {
-      const axios = require('axios');
       const response = await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
         status: 'processing'
       });
@@ -251,6 +251,155 @@ app.post('/orders/:orderId/validate', async (req, res) => {
     }
   } catch (error) {
     console.error('Error validating order:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get pending orders for a restaurant that need validation
+app.get('/restaurants/:restaurantId/pending-orders', async (req, res) => {
+  const { restaurantId } = req.params;
+  const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+  
+  try {
+    // Make sure the restaurant exists
+    const restaurantResult = await pool.query('SELECT * FROM restaurants WHERE id = $1', [restaurantId]);
+    
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Get orders from client service that are waiting for restaurant validation
+    try {
+      console.log(`Fetching orders for restaurant ${restaurantId} with status 'waiting_restaurant_validation'`);
+      
+      const response = await axios.get(`${clientServiceUrl}/orders/restaurant/${restaurantId}`);
+      
+      // Filter orders that are waiting for restaurant validation
+      const pendingOrders = response.data.filter(order => 
+        order.status === 'waiting_restaurant_validation'
+      );
+      
+      console.log(`Found ${pendingOrders.length} orders waiting for restaurant validation`);
+      res.json(pendingOrders);
+    } catch (error) {
+      console.error('Error fetching pending orders:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      res.status(500).json({ 
+        message: 'Failed to fetch pending orders',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Accept an order (restaurant validation)
+app.post('/restaurants/:restaurantId/orders/:orderId/accept', async (req, res) => {
+  const { restaurantId, orderId } = req.params;
+  const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+  
+  try {
+    // Make sure the restaurant exists
+    const restaurantResult = await pool.query('SELECT * FROM restaurants WHERE id = $1', [restaurantId]);
+    
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Get the order to verify it belongs to this restaurant and has the correct status
+    try {
+      const orderResponse = await axios.get(`${clientServiceUrl}/orders/${orderId}`);
+      const order = orderResponse.data;
+      
+      if (order.restaurant_id !== parseInt(restaurantId)) {
+        return res.status(403).json({ message: 'This order does not belong to this restaurant' });
+      }
+      
+      if (order.status !== 'waiting_restaurant_validation') {
+        return res.status(400).json({ 
+          message: `Cannot accept this order. Current status: ${order.status}` 
+        });
+      }
+      
+      // Update the order status to processing
+      const updateResponse = await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'processing'
+      });
+      
+      res.status(200).json({
+        message: 'Order accepted successfully',
+        order: updateResponse.data
+      });
+    } catch (error) {
+      console.error('Error accepting order:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      res.status(500).json({ 
+        message: 'Failed to accept order',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Reject an order (restaurant rejection)
+app.post('/restaurants/:restaurantId/orders/:orderId/reject', async (req, res) => {
+  const { restaurantId, orderId } = req.params;
+  const { reason } = req.body;
+  const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+  
+  try {
+    // Make sure the restaurant exists
+    const restaurantResult = await pool.query('SELECT * FROM restaurants WHERE id = $1', [restaurantId]);
+    
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Get the order to verify it belongs to this restaurant and has the correct status
+    try {
+      const orderResponse = await axios.get(`${clientServiceUrl}/orders/${orderId}`);
+      const order = orderResponse.data;
+      
+      if (order.restaurant_id !== parseInt(restaurantId)) {
+        return res.status(403).json({ message: 'This order does not belong to this restaurant' });
+      }
+      
+      if (order.status !== 'waiting_restaurant_validation') {
+        return res.status(400).json({ 
+          message: `Cannot reject this order. Current status: ${order.status}` 
+        });
+      }
+      
+      // Update the order status to cancelled
+      const updateResponse = await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'cancelled'
+      });
+      
+      res.status(200).json({
+        message: 'Order rejected successfully',
+        order: updateResponse.data
+      });
+    } catch (error) {
+      console.error('Error rejecting order:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
+      res.status(500).json({ 
+        message: 'Failed to reject order',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Database error:', error);
     res.status(500).json({ message: error.message });
   }
 });

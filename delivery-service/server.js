@@ -577,12 +577,34 @@ app.post('/orders/:orderId/reject', async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'UP',
-    database: pool.totalCount > 0 ? 'CONNECTED' : 'CONNECTING',
-    serviceVersion: '1.0.0',
-    timestamp: new Date().toISOString()
+app.get('/health', async (req, res) => {
+  try {
+    // Optional: Check database connection health
+    await pool.query('SELECT 1');
+    res.status(200).json({ 
+      status: 'UP',
+      database: pool.totalCount > 0 ? 'CONNECTED' : 'CONNECTING',
+      serviceVersion: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'DOWN', db_status: 'disconnected', error: error.message });
+  }
+});
+
+// Diagnostic endpoint for checking delivery person acceptance
+app.get('/diagnostic', (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  res.status(200).json({
+    message: 'Delivery service diagnostic endpoint',
+    timestamp: new Date().toISOString(),
+    headers: {
+      authorization: authHeader ? 'Present' : 'Missing',
+      host: req.headers.host,
+      origin: req.headers.origin
+    },
+    clientServiceUrl: CLIENT_SERVICE_URL
   });
 });
 

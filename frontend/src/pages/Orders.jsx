@@ -32,7 +32,14 @@ const Orders = () => {
           response = await apiClient.get(`/orders/client/${user.id}`);
           break;
         case 'restaurant':
-          response = await apiClient.get(`/orders/restaurant/${user.id}`);
+          // For restaurant owners, fetch orders using the email as user_id
+          // First, get the restaurant ID using the email
+          const restaurantResponse = await apiClient.get(`/restaurants/user/${user.email}`);
+          if (restaurantResponse.data && restaurantResponse.data.id) {
+            response = await apiClient.get(`/orders/restaurant/${restaurantResponse.data.id}`);
+          } else {
+            throw new Error('Restaurant not found');
+          }
           break;
         case 'delivery':
           response = await apiClient.get(`/orders/delivery/${user.id}`);
@@ -68,42 +75,153 @@ const Orders = () => {
     }
   };
 
+  // Function for delivery people to accept orders
   const acceptOrder = async (orderId) => {
-    if (!user || !user.id) return;
+    console.log("Attempting to accept order:", orderId);
+    console.log("Current user:", user);
+    
+    if (!user || !user.id) {
+      console.error("User is not authenticated or missing ID");
+      alert("Vous devez être connecté pour accepter une commande");
+      return;
+    }
+    
+    if (user.role !== 'delivery') {
+      console.error("User role is not delivery:", user.role);
+      alert("Seuls les livreurs peuvent accepter des commandes");
+      return;
+    }
     
     setProcessingOrderId(orderId);
     try {
-      await apiClient.post(`/delivery/orders/${orderId}/accept`, {
+      console.log(`Sending request to /delivery/orders/${orderId}/accept with deliveryPersonId: ${user.id}`);
+      const response = await apiClient.post(`/delivery/orders/${orderId}/accept`, {
         deliveryPersonId: user.id
       });
+      
+      console.log("Order accepted successfully:", response.data);
       
       // Remove from pending orders
       setPendingOrders(pendingOrders.filter(order => order.id !== orderId));
       
       // Refresh orders list
       fetchOrders();
+      
+      // Show success notification
+      alert("Commande acceptée avec succès");
     } catch (err) {
       console.error('Error accepting order:', err);
-      alert('Impossible d\'accepter la commande');
+      if (err.response) {
+        console.error('Response error data:', err.response.data);
+        console.error('Response error status:', err.response.status);
+      }
+      alert('Impossible d\'accepter la commande: ' + 
+        (err.response?.data?.message || err.message || 'Erreur inconnue'));
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  // Function for restaurants to validate orders
+  const validateOrder = async (orderId) => {
+    if (!user || !user.email || user.role !== 'restaurant') return;
+    
+    setProcessingOrderId(orderId);
+    try {
+      // Get restaurant ID first
+      const restaurantResponse = await apiClient.get(`/restaurants/user/${user.email}`);
+      if (!restaurantResponse.data || !restaurantResponse.data.id) {
+        throw new Error('Restaurant not found');
+      }
+      
+      const restaurantId = restaurantResponse.data.id;
+      
+      // Accept/validate the order
+      await apiClient.post(`/restaurants/${restaurantId}/orders/${orderId}/accept`);
+      
+      // Refresh orders list
+      fetchOrders();
+      
+      // Show success message
+      alert('Commande acceptée avec succès');
+    } catch (err) {
+      console.error('Error validating order:', err);
+      alert('Impossible de valider la commande: ' + 
+        (err.response?.data?.message || err.message || 'Erreur inconnue'));
     } finally {
       setProcessingOrderId(null);
     }
   };
 
   const rejectOrder = async (orderId) => {
-    if (!user || !user.id) return;
+    console.log("Attempting to reject order:", orderId);
+    console.log("Current user:", user);
+    
+    if (!user || !user.id) {
+      console.error("User is not authenticated or missing ID");
+      alert("Vous devez être connecté pour rejeter une commande");
+      return;
+    }
+    
+    if (user.role !== 'delivery') {
+      console.error("User role is not delivery:", user.role);
+      alert("Seuls les livreurs peuvent rejeter des commandes");
+      return;
+    }
     
     setProcessingOrderId(orderId);
     try {
-      await apiClient.post(`/delivery/orders/${orderId}/reject`, {
+      console.log(`Sending request to /delivery/orders/${orderId}/reject with deliveryPersonId: ${user.id}`);
+      const response = await apiClient.post(`/delivery/orders/${orderId}/reject`, {
         deliveryPersonId: user.id
       });
       
+      console.log("Order rejected successfully:", response.data);
+      
       // Remove from pending orders
       setPendingOrders(pendingOrders.filter(order => order.id !== orderId));
+      
+      // Show success notification
+      alert("Commande rejetée avec succès");
     } catch (err) {
       console.error('Error rejecting order:', err);
-      alert('Impossible de rejeter la commande');
+      if (err.response) {
+        console.error('Response error data:', err.response.data);
+        console.error('Response error status:', err.response.status);
+      }
+      alert('Impossible de rejeter la commande: ' + 
+        (err.response?.data?.message || err.message || 'Erreur inconnue'));
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  // Function for restaurants to reject orders
+  const restaurantRejectOrder = async (orderId) => {
+    if (!user || !user.email || user.role !== 'restaurant') return;
+    
+    setProcessingOrderId(orderId);
+    try {
+      // Get restaurant ID first
+      const restaurantResponse = await apiClient.get(`/restaurants/user/${user.email}`);
+      if (!restaurantResponse.data || !restaurantResponse.data.id) {
+        throw new Error('Restaurant not found');
+      }
+      
+      const restaurantId = restaurantResponse.data.id;
+      
+      // Reject the order
+      await apiClient.post(`/restaurants/${restaurantId}/orders/${orderId}/reject`);
+      
+      // Refresh orders list
+      fetchOrders();
+      
+      // Show success message
+      alert('Commande rejetée');
+    } catch (err) {
+      console.error('Error rejecting order:', err);
+      alert('Impossible de rejeter la commande: ' + 
+        (err.response?.data?.message || err.message || 'Erreur inconnue'));
     } finally {
       setProcessingOrderId(null);
     }
@@ -257,6 +375,106 @@ const Orders = () => {
     );
   };
 
+  // Section pour les restaurants: commandes en attente de validation
+  const renderRestaurantPendingOrdersSection = () => {
+    if (user?.role !== 'restaurant') return null;
+    
+    // Filter orders that are waiting for restaurant validation
+    const pendingValidationOrders = orders.filter(order => order.status === 'waiting_restaurant_validation');
+    
+    return (
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Commandes En Attente de Validation</h2>
+          <button 
+            onClick={fetchOrders}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            Actualiser
+          </button>
+        </div>
+        
+        {loading ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-2"></div>
+            <p className="text-gray-600">Chargement des commandes en attente...</p>
+          </div>
+        ) : pendingValidationOrders.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <p className="text-gray-600">Aucune commande en attente de validation pour le moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingValidationOrders.map(order => (
+              <div key={order.id} className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                <div className="p-4 bg-gradient-to-r from-yellow-50 to-white border-b">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-gray-800">Commande #{order.id}</h3>
+                    <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium">
+                      En attente de validation
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-sm">{new Date(order.created_at).toLocaleString('fr-FR')}</p>
+                </div>
+                
+                <div className="p-4">
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-1">Client</p>
+                    <p className="font-medium">Client #{order.client_id}</p>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-1">Adresse de livraison</p>
+                    <p className="font-medium">{order.delivery_address}</p>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-500 mb-1">Total</p>
+                    <p className="font-bold text-lg">{typeof order.total_price === 'number' 
+                      ? `${order.total_price.toFixed(2)}€` 
+                      : 'Prix non disponible'}</p>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-500 mb-1">Articles</p>
+                    <ul className="mt-1 space-y-1">
+                      {order.items && order.items.map((item, idx) => (
+                        <li key={idx} className="text-sm">
+                          <span className="font-medium">{item.quantity}x</span> {item.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      className="flex-1 py-2 rounded-md bg-primary text-white font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+                      onClick={() => validateOrder(order.id)}
+                      disabled={processingOrderId === order.id}
+                    >
+                      {processingOrderId === order.id ? 'Traitement...' : 'Accepter'}
+                    </button>
+                    
+                    <button
+                      className="flex-1 py-2 rounded-md bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+                      onClick={() => restaurantRejectOrder(order.id)}
+                      disabled={processingOrderId === order.id}
+                    >
+                      {processingOrderId === order.id ? 'Traitement...' : 'Rejeter'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Affichage s'il n'y a pas de commandes
   if (orders.length === 0 && (!user || user.role !== 'delivery' || pendingOrders.length === 0)) {
     return (
@@ -265,6 +483,9 @@ const Orders = () => {
         
         {/* Section des commandes en attente pour les livreurs */}
         {renderPendingOrdersSection()}
+        
+        {/* Section des commandes en attente de validation pour les restaurants */}
+        {renderRestaurantPendingOrdersSection()}
         
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
           <div className="flex flex-col items-center justify-center">
@@ -504,6 +725,9 @@ const Orders = () => {
       
       {/* Section des commandes en attente pour les livreurs */}
       {renderPendingOrdersSection()}
+      
+      {/* Section des commandes en attente de validation pour les restaurants */}
+      {renderRestaurantPendingOrdersSection()}
       
       <div className="space-y-6">
         {sortedOrders.map((order) => (
