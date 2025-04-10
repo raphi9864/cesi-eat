@@ -47,9 +47,9 @@ const RestaurantList = () => {
           <Link to={`/restaurants/${restaurant.id || restaurant._id}`} key={restaurant.id || restaurant._id}>
             <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
               <img
-                src={restaurant.imageUrl || restaurant.image || 'https://via.placeholder.com/300x200'}
+                src={restaurant.images?.[0] || restaurant.imageUrl || 'https://via.placeholder.com/300x200'}
                 alt={restaurant.name}
-                className="w-full h-48 object-cover"
+                className="w-full h-40 object-cover group-hover:opacity-90 transition-opacity duration-200"
               />
               <div className="p-4">
                 <h2 className="text-xl font-semibold mb-2">{restaurant.name}</h2>

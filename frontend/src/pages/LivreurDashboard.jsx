@@ -1,88 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import apiClient from '../api/axiosConfig';
 
 const LivreurDashboard = () => {
-  const [activeTab, setActiveTab] = useState('available');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('active');
 
-  // Données statiques pour le prototype
-  const availableDeliveries = [
-    {
-      id: 'DEL12345',
-      restaurant: {
-        name: 'Pizza Deluxe',
-        address: '123 Rue de la Paix, 75001 Paris'
-      },
-      customer: {
-        address: '456 Avenue des Champs-Élysées, 75008 Paris',
-        distance: 3.2
-      },
-      estimatedTime: 25,
-      fee: 4.50,
-      created: new Date(Date.now() - 10 * 60000) // 10 minutes ago
-    },
-    {
-      id: 'DEL12346',
-      restaurant: {
-        name: 'Sushi Master',
-        address: '789 Boulevard Haussmann, 75009 Paris'
-      },
-      customer: {
-        address: '101 Rue de Rivoli, 75001 Paris',
-        distance: 2.8
-      },
-      estimatedTime: 20,
-      fee: 4.00,
-      created: new Date(Date.now() - 5 * 60000) // 5 minutes ago
+  // States for API data
+  const [activeDeliveriesData, setActiveDeliveriesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch active deliveries for the current user
+  useEffect(() => {
+    if (!user?.id) {
+      // setError('Impossible de récupérer l'ID du livreur connecté.');
+      setLoading(false); // Don't show loading if no user ID
+      return;
     }
-  ];
 
-  const activeDeliveries = [
-    {
-      id: 'DEL12340',
-      restaurant: {
-        name: 'Burger King',
-        address: '222 Rue Saint-Honoré, 75001 Paris'
-      },
-      customer: {
-        name: 'Jean Dupont',
-        phone: '06 12 34 56 78',
-        address: '333 Rue de la Roquette, 75011 Paris',
-        distance: 4.5
-      },
-      estimatedTime: 30,
-      fee: 5.50,
-      status: 'picking_up',
-      created: new Date(Date.now() - 15 * 60000) // 15 minutes ago
-    }
-  ];
+    const fetchActiveDeliveries = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Use the Nginx route /api/delivery/ which proxies to delivery_service
+        const response = await apiClient.get(`/delivery/deliveries/person/${user.id}`);
+        setActiveDeliveriesData(response.data);
+      } catch (err) {
+        console.error('Error fetching active deliveries:', err);
+        setError('Impossible de charger les livraisons actives. ' + (err.response?.data?.message || err.message));
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const deliveryHistory = [
-    {
-      id: 'DEL12330',
-      date: new Date(2023, 4, 15, 18, 30),
-      restaurant: {
-        name: 'Pizza Deluxe'
-      },
-      customer: {
-        address: '123 Rue de Paris, 75001 Paris'
-      },
-      fee: 4.75,
-      status: 'completed'
-    },
-    {
-      id: 'DEL12331',
-      date: new Date(2023, 4, 14, 12, 45),
-      restaurant: {
-        name: 'Sushi Master'
-      },
-      customer: {
-        address: '456 Boulevard Saint-Germain, 75006 Paris'
-      },
-      fee: 5.25,
-      status: 'completed'
-    }
-  ];
+    fetchActiveDeliveries();
+  }, [user]);
 
-  const getTimeSince = (date) => {
+  const getTimeSince = (dateString) => {
+    if (!dateString) return 'Date inconnue';
+    const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
@@ -100,7 +57,9 @@ const LivreurDashboard = () => {
     return `Il y a ${diffDays} jours`;
   };
 
-  const formatDate = (date) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date inconnue';
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -110,14 +69,38 @@ const LivreurDashboard = () => {
     }).format(date);
   };
 
-  const acceptDelivery = (id) => {
-    console.log('Accepted delivery:', id);
-    // Ici, on ferait un appel API pour accepter la livraison
+  const getStatusLabel = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'assigned': return 'Assignée';
+      case 'picking_up':
+      case 'picked-up': return 'Récupérée';
+      case 'delivering': return 'En cours de livraison';
+      case 'delivered': return 'Livrée';
+      case 'cancelled': return 'Annulée';
+      default: return status || 'Inconnu';
+    }
   };
 
-  const updateDeliveryStatus = (id, status) => {
-    console.log('Update delivery status:', id, status);
-    // Ici, on ferait un appel API pour mettre à jour le statut
+  const acceptDelivery = async (id) => {
+    console.log('TODO: Accept delivery via API:', id);
+    // Requires backend endpoint for available deliveries and accepting them
+    // Example:
+    // try {
+    //   await apiClient.post(`/delivery/deliveries/${id}/accept`, { deliveryPersonId: user.id });
+    //   // Re-fetch or update state
+    // } catch (err) { ... }
+  };
+
+  const updateDeliveryStatus = async (id, status) => {
+    console.log('TODO: Update delivery status via API:', id, status);
+    // Example:
+    // try {
+    //   const response = await apiClient.patch(`/delivery/deliveries/${id}/status`, { status });
+    //   setActiveDeliveriesData(prev => prev.map(d => d.id === id ? response.data : d));
+    // } catch (err) {
+    //   console.error("Failed to update delivery status", err);
+    //   // Handle error
+    // }
   };
 
   return (
@@ -134,7 +117,7 @@ const LivreurDashboard = () => {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Livraisons disponibles
+          Livraisons disponibles {/* Count? Requires API */}
         </button>
         <button
           onClick={() => setActiveTab('active')}
@@ -144,7 +127,7 @@ const LivreurDashboard = () => {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Mes livraisons actives
+          Mes livraisons ({loading ? '...' : activeDeliveriesData.length})
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -154,185 +137,123 @@ const LivreurDashboard = () => {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Historique
+          Historique {/* Count? Requires API */}
         </button>
       </div>
 
-      {/* Available Deliveries */}
-      {activeTab === 'available' && (
-        <div>
-          {availableDeliveries.length === 0 ? (
+      {/* Display loading state */}
+      {loading && <div className="p-4 text-center">Chargement...</div>}
+
+      {/* Display error state */}
+      {error && <div className="p-4 text-center text-red-600">Erreur: {error}</div>}
+
+      {/* --- Tab Content (only render when not loading/error) --- */}
+      {!loading && !error && (
+        <>
+          {/* Available Deliveries Tab - Placeholder */}
+          {activeTab === 'available' && (
             <div className="text-center py-8 bg-white rounded-lg shadow-md">
               <p className="text-xl text-gray-600">
-                Aucune livraison disponible pour le moment.
+                Fonctionnalité "Livraisons disponibles" non connectée à l'API pour le moment.
               </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {availableDeliveries.map((delivery) => (
-                <div key={delivery.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-                    <h2 className="font-semibold">{delivery.restaurant.name}</h2>
-                    <span className="text-gray-500 text-sm">
-                      {getTimeSince(delivery.created)}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <div className="mb-4">
-                      <h3 className="font-medium mb-1">Détails de la course</h3>
-                      <p><span className="font-medium">Restaurant:</span> {delivery.restaurant.address}</p>
-                      <p><span className="font-medium">Client:</span> {delivery.customer.address}</p>
-                      <p><span className="font-medium">Distance:</span> {delivery.customer.distance} km</p>
-                    </div>
-                    <div className="flex justify-between items-center mb-4">
-                      <div>
-                        <p className="text-gray-700">
-                          <span className="font-medium">Temps estimé:</span> {delivery.estimatedTime} min
-                        </p>
-                        <p className="text-gray-700">
-                          <span className="font-medium">Rémunération:</span> {delivery.fee.toFixed(2)}€
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => acceptDelivery(delivery.id)}
-                        className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
-                      >
-                        Accepter
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {/* Placeholder for future implementation
+              {availableDeliveriesFromAPI.length === 0 ? (...) : (...map...)}
+              */}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Active Deliveries */}
-      {activeTab === 'active' && (
-        <div>
-          {activeDeliveries.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-lg shadow-md">
-              <p className="text-xl text-gray-600">
-                Vous n'avez pas de livraison en cours.
-              </p>
-            </div>
-          ) : (
+          {/* Active Deliveries Tab - Using API Data */}
+          {activeTab === 'active' && (
             <div>
-              {activeDeliveries.map((delivery) => (
-                <div key={delivery.id} className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-                    <div>
-                      <h2 className="font-semibold">{delivery.restaurant.name}</h2>
-                      <p className="text-sm text-gray-500">Commande #{delivery.id}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                        {delivery.status === 'picking_up' ? 'À récupérer' : 'En livraison'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="mb-4">
-                      <h3 className="font-medium mb-2">Adresses</h3>
-                      <p className="mb-2">
-                        <span className="font-medium">Restaurant:</span> {delivery.restaurant.address}
-                      </p>
-                      <p>
-                        <span className="font-medium">Client:</span> {delivery.customer.address}
-                      </p>
-                    </div>
-                    <div className="mb-4">
-                      <h3 className="font-medium mb-2">Informations client</h3>
-                      <p className="mb-1">
-                        <span className="font-medium">Nom:</span> {delivery.customer.name}
-                      </p>
-                      <p>
-                        <span className="font-medium">Téléphone:</span> {delivery.customer.phone}
-                      </p>
-                    </div>
-                    <div className="mb-4">
-                      <h3 className="font-medium mb-2">Détails</h3>
-                      <p className="mb-1">
-                        <span className="font-medium">Distance:</span> {delivery.customer.distance} km
-                      </p>
-                      <p className="mb-1">
-                        <span className="font-medium">Temps estimé:</span> {delivery.estimatedTime} min
-                      </p>
-                      <p>
-                        <span className="font-medium">Rémunération:</span> {delivery.fee.toFixed(2)}€
-                      </p>
-                    </div>
-                    <div className="flex justify-between">
-                      {delivery.status === 'picking_up' ? (
-                        <button
-                          onClick={() => updateDeliveryStatus(delivery.id, 'picked_up')}
-                          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
-                        >
-                          J'ai récupéré la commande
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => updateDeliveryStatus(delivery.id, 'delivered')}
-                          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
-                        >
-                          Marquer comme livré
-                        </button>
-                      )}
-                      <button className="text-red-500 hover:underline">
-                        Signaler un problème
-                      </button>
-                    </div>
-                  </div>
+              {activeDeliveriesData.length === 0 ? (
+                <div className="text-center py-8 bg-white rounded-lg shadow-md">
+                  <p className="text-xl text-gray-600">
+                    Vous n'avez pas de livraison en cours.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {activeDeliveriesData.map((delivery) => (
+                    <div key={delivery.id || delivery._id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+                         {/* Adapt based on actual delivery data structure from API */}
+                        <div>
+                           <h2 className="font-semibold">Commande #{delivery.order_id}</h2>
+                           <p className="text-sm text-gray-500">Assignée {getTimeSince(delivery.assigned_at)}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${ 
+                            delivery.status === 'assigned' ? 'bg-blue-100 text-blue-800' : 
+                            delivery.status === 'picked-up' ? 'bg-yellow-100 text-yellow-800' : 
+                            delivery.status === 'delivering' ? 'bg-purple-100 text-purple-800' : 
+                            'bg-gray-100 text-gray-800' 
+                        }`}>
+                          {getStatusLabel(delivery.status)}
+                        </span>
+                      </div>
+                      <div className="p-4">
+                        <div className="mb-4">
+                          <h3 className="font-medium mb-2">Adresses</h3>
+                           {/* Pickup/Delivery locations likely JSON - need careful parsing */}
+                          <p className="mb-1">
+                            <span className="font-medium">Récupérer:</span> {delivery.pickup_location?.address || JSON.stringify(delivery.pickup_location) || 'N/A'}
+                          </p>
+                          <p>
+                            <span className="font-medium">Livrer:</span> {delivery.delivery_location?.address || JSON.stringify(delivery.delivery_location) || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="mb-4">
+                           <h3 className="font-medium mb-2">Infos</h3>
+                           {/* Add more relevant details if available from API */}
+                           <p>ID Livraison: <span className="font-mono text-xs">{delivery.id}</span></p>
+                           <p>Temps estimé: {delivery.estimated_delivery_time ? `${delivery.estimated_delivery_time} min` : 'N/A'}</p>
+                        </div>
+                         {/* Actions to update status */}
+                         <div className="flex justify-end space-x-2">
+                             {delivery.status === 'assigned' && (
+                               <button 
+                                 onClick={() => updateDeliveryStatus(delivery.id, 'picked-up')}
+                                 className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm"
+                               >
+                                 Récupérée
+                               </button>
+                             )}
+                              {delivery.status === 'picked-up' && (
+                               <button 
+                                 onClick={() => updateDeliveryStatus(delivery.id, 'delivering')}
+                                 className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 text-sm"
+                               >
+                                 En Livraison
+                               </button>
+                             )}
+                              {delivery.status === 'delivering' && (
+                                <button 
+                                  onClick={() => updateDeliveryStatus(delivery.id, 'delivered')}
+                                  className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
+                                >
+                                  Livrée
+                                </button>
+                              )}
+                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Delivery History */}
-      {activeTab === 'history' && (
-        <div>
-          {deliveryHistory.length === 0 ? (
+          {/* Delivery History Tab - Placeholder */}
+          {activeTab === 'history' && (
             <div className="text-center py-8 bg-white rounded-lg shadow-md">
               <p className="text-xl text-gray-600">
-                Vous n'avez pas encore effectué de livraisons.
+                Fonctionnalité "Historique" non connectée à l'API pour le moment.
               </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white rounded-lg shadow-md">
-                <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="py-3 px-4 text-left">ID</th>
-                    <th className="py-3 px-4 text-left">Date</th>
-                    <th className="py-3 px-4 text-left">Restaurant</th>
-                    <th className="py-3 px-4 text-left">Adresse client</th>
-                    <th className="py-3 px-4 text-left">Rémunération</th>
-                    <th className="py-3 px-4 text-left">Statut</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deliveryHistory.map((delivery) => (
-                    <tr key={delivery.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{delivery.id}</td>
-                      <td className="py-3 px-4">{formatDate(delivery.date)}</td>
-                      <td className="py-3 px-4">{delivery.restaurant.name}</td>
-                      <td className="py-3 px-4">{delivery.customer.address}</td>
-                      <td className="py-3 px-4">{delivery.fee.toFixed(2)}€</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                          Livré
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+               {/* Placeholder for future implementation
+               {historyDeliveriesFromAPI.length === 0 ? (...) : (...map...)}
+               */}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

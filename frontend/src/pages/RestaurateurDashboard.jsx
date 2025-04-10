@@ -2,6 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/axiosConfig';
 
+// Simple Modal Component (can be extracted to its own file later)
+const Modal = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl font-bold"
+          aria-label="Close modal"
+        >
+          &times;
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const RestaurateurDashboard = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('orders');
@@ -14,6 +34,20 @@ const RestaurateurDashboard = () => {
   // States for loading and error handling
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // State for Add Dish Modal
+  const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
+  const [newDishData, setNewDishData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: '',
+    image: '',
+  });
+
+  // State for Edit Restaurant Modal
+  const [isEditRestaurantModalOpen, setIsEditRestaurantModalOpen] = useState(false);
+  const [editedRestaurantData, setEditedRestaurantData] = useState(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -152,15 +186,16 @@ const RestaurateurDashboard = () => {
   // --- Action Functions (placeholders - implement API calls later) ---
   const updateOrderStatus = async (id, status) => {
     console.log('TODO: Update order status via API:', id, status);
-    // Example:
-    // try {
-    //   await apiClient.patch(`/orders/${id}`, { status });
-    //   // Refresh orders or update local state optimistically/realistically
-    //   setAllOrders(prevOrders => prevOrders.map(o => o.id === id ? { ...o, status } : o));
-    // } catch (err) {
-    //   console.error("Failed to update order status", err);
-    //   // Handle error (e.g., show toast notification)
-    // }
+    // Placeholder remains until API is ready or needed
+    try {
+       // Example: await apiClient.patch(`/orders/${id}`, { status });
+       // Refresh orders or update local state optimistically/realistically
+       // setAllOrders(prevOrders => prevOrders.map(o => o.id === id ? { ...o, status } : o));
+       alert(`Statut de la commande ${id} mis à jour à ${status} (simulation)`); // Placeholder feedback
+     } catch (err) {
+       console.error("Failed to update order status", err);
+       setError(`Erreur lors de la mise à jour du statut de la commande ${id}: ${err.message}`);
+     }
   };
 
   // Function to validate an order that's waiting for restaurant validation
@@ -188,29 +223,196 @@ const RestaurateurDashboard = () => {
   };
 
   const toggleItemAvailability = async (id) => {
-    console.log('TODO: Toggle availability for item via API:', id);
-    // Example: Find item, determine new status, call API, update state
-    // const item = menu.find(i => i.id === id);
-    // if (!item) return;
-    // const newAvailability = !item.is_available;
-    // try {
-    //   await apiClient.patch(`/dishes/${id}`, { is_available: newAvailability });
-    //   setMenu(prevMenu => prevMenu.map(i => i.id === id ? { ...i, is_available: newAvailability } : i));
-    // } catch (err) {
-    //   console.error("Failed to update dish availability", err);
-    // }
+    const item = menu.find(i => i.id === id);
+    if (!item) return;
+
+    const newAvailability = !item.is_available;
+    // Optimistic UI update
+    setMenu(prevMenu => prevMenu.map(i => i.id === id ? { ...i, is_available: newAvailability } : i));
+
+    try {
+      await apiClient.patch(`/dishes/${id}`, { is_available: newAvailability });
+      // State already updated optimistically
+    } catch (err) {
+      console.error("Failed to update dish availability", err);
+      setError(`Erreur lors de la mise à jour de la disponibilité du plat ${item.name}: ${err.message}`);
+      // Rollback UI on error
+      setMenu(prevMenu => prevMenu.map(i => i.id === id ? { ...i, is_available: item.is_available } : i));
+    }
   };
 
   const updateRestaurantStatus = async (status) => {
-    console.log('TODO: Update restaurant status via API:', status);
-    // Example:
-    // if (!restaurantDetails?.id) return;
+    console.warn('Fonctionnalité non implémentable: Le statut du restaurant (ouvert/fermé) nécessite une modification de la base de données.');
+    alert('Fonctionnalité non disponible: Le statut du restaurant ne peut être modifié pour le moment.');
+    // Keep original value displayed
+    // Reset dropdown if needed, find the select element and set its value back
+    const selectElement = document.getElementById('restaurant-status-select'); // Need to add this ID
+    if (selectElement && restaurantDetails?.db_status) { // Assuming db_status if it existed
+        selectElement.value = restaurantDetails.db_status;
+    } else if (selectElement) {
+         selectElement.value = 'closed'; // Default fallback
+    }
     // try {
-    //   await apiClient.patch(`/restaurants/${restaurantDetails.id}`, { status }); // Assuming status field exists
-    //   setRestaurantDetails(prev => ({ ...prev, status }));
+    //   if (!restaurantDetails?.id) throw new Error("ID du restaurant manquant");
+    //   await apiClient.patch(`/restaurants/${restaurantDetails.id}`, { status }); // Replace 'status' with actual DB field if added
+    //   setRestaurantDetails(prev => ({ ...prev, status })); // Update local state with the actual field
     // } catch (err) {
     //   console.error("Failed to update restaurant status", err);
+    //   setError(`Erreur lors de la mise à jour du statut du restaurant: ${err.message}`);
     // }
+  };
+
+  const deleteDish = async (id, dishName) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le plat "${dishName}" ? Cette action est irréversible.`)) {
+      // Optimistic UI update (optional, can also update after success)
+      // setMenu(prevMenu => prevMenu.filter(item => item.id !== id));
+
+      try {
+        await apiClient.delete(`/dishes/${id}`);
+        // Update state after successful deletion
+        setMenu(prevMenu => prevMenu.filter(item => item.id !== id));
+        // Optionally show a success notification
+        alert(`Le plat "${dishName}" a été supprimé.`);
+      } catch (err) {
+        console.error("Failed to delete dish", err);
+        setError(`Erreur lors de la suppression du plat ${dishName}: ${err.message}`);
+        // Rollback UI if optimistic update was used
+        // To rollback, we might need to temporarily store the item or refetch the menu
+        // For simplicity, we'll update the state only on success here.
+      }
+    }
+  };
+
+  const addDish = async (event) => {
+    event.preventDefault(); // Prevent default form submission
+    if (!restaurantDetails?.id) {
+      setError("ID du restaurant non disponible pour ajouter un plat.");
+      return;
+    }
+
+    // Basic validation
+    if (!newDishData.name || !newDishData.price || !newDishData.category) {
+        setError("Le nom, le prix et la catégorie sont requis pour ajouter un plat.");
+        return;
+    }
+
+    try {
+      const response = await apiClient.post(
+        `/restaurants/${restaurantDetails.id}/dishes`,
+        {
+          ...newDishData,
+          // Ensure price is sent as a number if needed by the backend
+          price: parseFloat(newDishData.price) || 0,
+          // Add restaurant_id if backend doesn't infer it from the route
+          // restaurant_id: restaurantDetails.id
+        }
+      );
+
+      // Add the new dish to the menu state
+      setMenu(prevMenu => [...prevMenu, response.data]);
+
+      // Close modal and reset form
+      setIsAddDishModalOpen(false);
+      setNewDishData({ name: '', description: '', price: '', category: '', image: '' });
+      setError(null); // Clear previous errors
+      alert(`Plat "${response.data.name}" ajouté avec succès !`);
+
+    } catch (err) {
+      console.error("Failed to add dish:", err);
+      let errorMsg = "Erreur lors de l'ajout du plat.";
+      if (err.response?.data?.message) {
+          errorMsg += ` ${err.response.data.message}`;
+      } else if (err.message) {
+          errorMsg += ` ${err.message}`;
+      }
+      setError(errorMsg);
+      // Keep the modal open on error so the user can correct input
+    }
+  };
+
+  const handleNewDishChange = (event) => {
+    const { name, value } = event.target;
+    setNewDishData(prevData => ({ ...prevData, [name]: value }));
+  };
+
+  const updateRestaurantInfo = async (event) => {
+    event.preventDefault(); // Prevent default form submission
+    if (!restaurantDetails?.id || !editedRestaurantData) {
+      setError("Données manquantes pour la mise à jour du restaurant.");
+      return;
+    }
+
+    // Basic validation (can be expanded)
+    if (!editedRestaurantData.name || !editedRestaurantData.address || !editedRestaurantData.phone) {
+        setError("Le nom, l'adresse et le téléphone sont requis.");
+        return;
+    }
+
+    // Prepare data for PATCH (only send changed fields potentially, or send all editable fields)
+    const dataToSend = {
+        name: editedRestaurantData.name,
+        address: editedRestaurantData.address,
+        cuisine: editedRestaurantData.cuisine,
+        phone: editedRestaurantData.phone,
+        email: editedRestaurantData.email,
+        description: editedRestaurantData.description,
+        delivery_time: editedRestaurantData.delivery_time,
+        // Convert fee back to number, handle potential empty string
+        delivery_fee: editedRestaurantData.delivery_fee ? parseFloat(editedRestaurantData.delivery_fee) : null,
+        // opening_hours and images are complex, handle separately if needed
+    };
+
+    try {
+      const response = await apiClient.patch(
+        `/restaurants/${restaurantDetails.id}`,
+        dataToSend
+      );
+
+      // Update the main restaurantDetails state
+      setRestaurantDetails(response.data);
+
+      // Close modal
+      setIsEditRestaurantModalOpen(false);
+      setError(null); // Clear previous errors
+      alert(`Informations du restaurant mises à jour avec succès !`);
+
+    } catch (err) {
+      console.error("Failed to update restaurant info:", err);
+      let errorMsg = "Erreur lors de la mise à jour des informations.";
+      if (err.response?.data?.message) {
+          errorMsg += ` ${err.response.data.message}`;
+      } else if (err.message) {
+          errorMsg += ` ${err.message}`;
+      }
+      setError(errorMsg); // Display error potentially inside the modal
+      // Keep the modal open on error
+    }
+  };
+
+  const handleEditRestaurantChange = (event) => {
+    const { name, value } = event.target;
+    setEditedRestaurantData(prevData => ({ ...prevData, [name]: value }));
+  };
+
+  // Function to open the edit modal and initialize its state
+  const openEditRestaurantModal = () => {
+      if (!restaurantDetails) return;
+      // Initialize form with current details (handle potential missing fields)
+      setEditedRestaurantData({
+          name: restaurantDetails.name || '',
+          address: restaurantDetails.address || '',
+          cuisine: restaurantDetails.cuisine || '',
+          phone: restaurantDetails.phone || '',
+          email: restaurantDetails.email || '',
+          description: restaurantDetails.description || '',
+          delivery_time: restaurantDetails.delivery_time || '',
+          // Ensure fee is a string for the input field, handle null/undefined
+          delivery_fee: restaurantDetails.delivery_fee != null ? String(restaurantDetails.delivery_fee) : '',
+          // opening_hours: JSON.stringify(restaurantDetails.opening_hours || {}, null, 2), // Example if needed
+          // images: restaurantDetails.images || [], // Example if needed
+      });
+      setIsEditRestaurantModalOpen(true);
+      setError(null); // Clear errors when opening modal
   };
 
   // --- Render Logic ---
@@ -232,17 +434,19 @@ const RestaurateurDashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{restaurantDetails.name || 'Gestion Restaurant'}</h1>
         <div className="flex items-center space-x-4">
-          <span className="font-medium">Statut:</span>
+          <span className="font-medium">Statut (Info):</span>
           <select
-            className="border p-2 rounded-md"
-            // Use status from fetched details, provide fallback
-            value={restaurantDetails.status || 'closed'}
+            id="restaurant-status-select" // Added ID for potential rollback
+            className="border p-2 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed" // Style as disabled
+            value={'closed'} // Default display value, not tied to DB
             onChange={(e) => updateRestaurantStatus(e.target.value)}
+            disabled // Disable the dropdown
           >
             <option value="open">Ouvert</option>
             <option value="busy">Occupé</option>
             <option value="closed">Fermé</option>
           </select>
+           <span className="text-xs text-gray-400">(Non modifiable)</span>
         </div>
       </div>
 
@@ -278,6 +482,7 @@ const RestaurateurDashboard = () => {
         >
           Historique ({orderHistory.length}) {/* Show count */}
         </button>
+        {/* Add Settings Tab */}
         <button
           onClick={() => setActiveTab('settings')}
           className={`py-2 px-4 font-medium ${
@@ -378,8 +583,11 @@ const RestaurateurDashboard = () => {
         <div>
           <div className="flex justify-between mb-6">
             <h2 className="text-xl font-semibold">Menu</h2>
-            <button className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark">
-              Ajouter un article {/* TODO: Implement Add Item Modal/Page */}
+            <button
+              onClick={() => setIsAddDishModalOpen(true)} // Open modal on click
+              className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
+            >
+              Ajouter un article
             </button>
           </div>
           <div className="overflow-x-auto">
@@ -424,11 +632,14 @@ const RestaurateurDashboard = () => {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex space-x-2">
-                            <button className="text-blue-500 hover:underline">
+                            <button className="text-blue-500 hover:underline text-xs">
                               Modifier {/* TODO: Implement Edit */}
                             </button>
-                            <button className="text-red-500 hover:underline">
-                              Supprimer {/* TODO: Implement Delete */}
+                            <button
+                              onClick={() => deleteDish(item.id || item._id, item.name)}
+                              className="text-red-500 hover:underline text-xs"
+                            >
+                              Supprimer
                             </button>
                           </div>
                         </td>
@@ -546,12 +757,162 @@ const RestaurateurDashboard = () => {
             </div>
           </div>
           <div className="mt-6 text-right">
-            <button className="bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed" disabled>
-              Modification non disponible {/* TODO: Implement modification request/edit feature */}
+            <button
+              onClick={openEditRestaurantModal} // Open edit modal
+              className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
+            >
+              Modifier les informations
             </button>
           </div>
         </div>
       )}
+
+      {/* Add Dish Modal */}
+      <Modal isOpen={isAddDishModalOpen} onClose={() => setIsAddDishModalOpen(false)}>
+        <h3 className="text-lg font-semibold mb-4">Ajouter un nouveau plat</h3>
+        {error && <div className="mb-4 text-red-600 text-sm">Erreur: {error}</div>} {/* Display errors inside modal */}
+        <form onSubmit={addDish}>
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nom du plat*</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={newDishData.name}
+              onChange={handleNewDishChange}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={newDishData.description}
+              onChange={handleNewDishChange}
+              rows="3"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+            ></textarea>
+          </div>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Prix (€)*</label>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={newDishData.price}
+                onChange={handleNewDishChange}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                required
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Catégorie*</label>
+              <input
+                type="text"
+                id="category"
+                name="category"
+                value={newDishData.category}
+                onChange={handleNewDishChange}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                required
+              />
+            </div>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">URL de l'image</label>
+            <input
+              type="url"
+              id="image"
+              name="image"
+              value={newDishData.image}
+              onChange={handleNewDishChange}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+              placeholder="https://exemple.com/image.jpg"
+            />
+          </div>
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              type="button"
+              onClick={() => setIsAddDishModalOpen(false)}
+              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark"
+            >
+              Ajouter le plat
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Restaurant Modal */}
+      <Modal isOpen={isEditRestaurantModalOpen} onClose={() => setIsEditRestaurantModalOpen(false)}>
+          <h3 className="text-lg font-semibold mb-4">Modifier les informations du restaurant</h3>
+          {error && <div className="mb-4 text-red-600 text-sm">Erreur: {error}</div>} {/* Display errors inside modal */}
+          {editedRestaurantData && (
+              <form onSubmit={updateRestaurantInfo}>
+                  {/* Group fields for better layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                          <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">Nom*</label>
+                          <input type="text" id="edit-name" name="name" value={editedRestaurantData.name} onChange={handleEditRestaurantChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-cuisine" className="block text-sm font-medium text-gray-700 mb-1">Cuisine</label>
+                          <input type="text" id="edit-cuisine" name="cuisine" value={editedRestaurantData.cuisine} onChange={handleEditRestaurantChange} className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                  </div>
+                  <div className="mb-4">
+                      <label htmlFor="edit-address" className="block text-sm font-medium text-gray-700 mb-1">Adresse*</label>
+                      <input type="text" id="edit-address" name="address" value={editedRestaurantData.address} onChange={handleEditRestaurantChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                          <label htmlFor="edit-phone" className="block text-sm font-medium text-gray-700 mb-1">Téléphone*</label>
+                          <input type="tel" id="edit-phone" name="phone" value={editedRestaurantData.phone} onChange={handleEditRestaurantChange} required className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <input type="email" id="edit-email" name="email" value={editedRestaurantData.email} onChange={handleEditRestaurantChange} className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                  </div>
+                   <div className="mb-4">
+                      <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea id="edit-description" name="description" value={editedRestaurantData.description} onChange={handleEditRestaurantChange} rows="3" className="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                          <label htmlFor="edit-delivery_time" className="block text-sm font-medium text-gray-700 mb-1">Temps livraison (ex: 20-30 min)</label>
+                          <input type="text" id="edit-delivery_time" name="delivery_time" value={editedRestaurantData.delivery_time} onChange={handleEditRestaurantChange} className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                      <div>
+                          <label htmlFor="edit-delivery_fee" className="block text-sm font-medium text-gray-700 mb-1">Frais livraison (€)</label>
+                          <input type="number" id="edit-delivery_fee" name="delivery_fee" value={editedRestaurantData.delivery_fee} onChange={handleEditRestaurantChange} step="0.01" min="0" className="w-full p-2 border border-gray-300 rounded-md" />
+                      </div>
+                  </div>
+
+                  {/* Add more fields as needed, e.g., images array editor, opening hours editor - these are complex */}
+
+                  <div className="flex justify-end space-x-3 mt-6">
+                      <button type="button" onClick={() => setIsEditRestaurantModalOpen(false)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+                          Annuler
+                      </button>
+                      <button type="submit" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark">
+                          Enregistrer les modifications
+                      </button>
+                  </div>
+              </form>
+          )}
+      </Modal>
+
     </div>
   );
 };

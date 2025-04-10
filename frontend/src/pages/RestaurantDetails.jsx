@@ -153,7 +153,7 @@ const RestaurantDetails = () => {
               {filteredDishes.map((dish) => (
                   <div key={dish.id || dish._id} className="flex bg-white rounded-lg shadow-md overflow-hidden">
                       <img
-                          src={dish.imageUrl || dish.image || 'https://via.placeholder.com/150'} // Fallback image
+                          src={dish.image || 'https://via.placeholder.com/150'} // Use dish.image directly
                           alt={dish.name}
                           className="w-24 h-24 object-cover flex-shrink-0"
                       />

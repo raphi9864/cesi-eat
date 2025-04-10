@@ -137,6 +137,14 @@ const Header = () => {
                     <UserIcon className="h-6 w-6" />
                   </button>
                   <div className="absolute right-0 w-48 bg-white shadow-lg rounded-md p-2 hidden group-hover:block">
+                    {user.role === 'restaurant' && (
+                      <Link
+                        to="/restaurant-dashboard"
+                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                      >
+                        Tableau de Bord
+                      </Link>
+                    )}
                     <Link
                       to="/profile"
                       className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
@@ -265,6 +273,15 @@ const Header = () => {
                   >
                     Mon Profil
                   </Link>
+                  {user.role === 'restaurant' && (
+                    <Link
+                      to="/restaurant-dashboard"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={toggleMenu}
+                    >
+                      Tableau de Bord
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       handleLogout();

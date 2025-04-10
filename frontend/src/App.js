@@ -42,7 +42,7 @@ function App() {
               </Route>
 
               {/* Routes par rôle */}
-              <Route element={<RoleProtectedRoute roles={['livreur']} />}>
+              <Route element={<RoleProtectedRoute roles={['delivery']} />}>
                 <Route path="/delivery-dashboard" element={<LivreurDashboard />} />
               </Route>
 
