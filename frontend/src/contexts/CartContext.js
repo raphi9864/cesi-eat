@@ -74,7 +74,10 @@ export const CartProvider = ({ children }) => {
   };
 
   const getTotal = () => {
-    return state.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return state.items.reduce((total, item) => {
+      const price = typeof item.price === 'number' ? item.price : Number(item.price);
+      return total + (price * item.quantity);
+    }, 0);
   };
 
   const value = {
