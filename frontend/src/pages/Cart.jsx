@@ -45,9 +45,12 @@ const Cart = () => {
       const restaurantId = Object.keys(itemsByRestaurant)[0];
       const restaurantName = itemsByRestaurant[restaurantId].restaurantName;
       
-      // Préparer les données de commande
+      // Get delivery address - use a default if not available
+      const deliveryAddress = user.address || "Adresse de livraison par défaut";
+      
+      // Préparer les données de commande - use auth user ID directly
       const orderData = {
-        clientId: user.id,
+        clientId: user.id, // Use auth user ID directly
         restaurantId: parseInt(restaurantId),
         restaurantName,
         items: items.map(item => ({
@@ -57,10 +60,10 @@ const Cart = () => {
           quantity: item.quantity
         })),
         totalPrice: getTotal() + 2.99, // Total + frais de livraison
-        deliveryAddress: user.address || "Adresse à définir", // Idéalement, récupérer depuis le profil
+        deliveryAddress: deliveryAddress,
         deliveryNotes: "",
-        status: "pending", // Assure que la commande est créée avec le statut 'pending'
-        paymentMethod: "card" // Valeur par défaut, à remplacer par un choix de l'utilisateur
+        status: "pending",
+        paymentMethod: "card"
       };
       
       console.log("Order data being sent:", orderData);
