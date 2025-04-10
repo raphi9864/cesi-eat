@@ -4,7 +4,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create client profiles table
 CREATE TABLE IF NOT EXISTS client_profiles (
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR(50) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
   address TEXT NOT NULL,
   phone VARCHAR(50) NOT NULL,
@@ -16,8 +15,9 @@ CREATE TABLE IF NOT EXISTS client_profiles (
 -- Create orders table
 CREATE TABLE IF NOT EXISTS orders (
   id SERIAL PRIMARY KEY,
-  client_id VARCHAR(50) NOT NULL,
+  client_id INTEGER NOT NULL,
   restaurant_id INTEGER NOT NULL,
+  delivery_id INTEGER,
   restaurant_name VARCHAR(255) NOT NULL,
   total_price DECIMAL(10, 2) NOT NULL,
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
@@ -61,7 +61,7 @@ FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
 -- Create indexes
-CREATE INDEX idx_client_user_id ON client_profiles(user_id);
+CREATE INDEX idx_client_user_id ON client_profiles(id);
 CREATE INDEX idx_orders_client_id ON orders(client_id);
 CREATE INDEX idx_orders_restaurant_id ON orders(restaurant_id);
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);

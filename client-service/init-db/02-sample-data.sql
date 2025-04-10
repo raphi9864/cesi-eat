@@ -1,8 +1,7 @@
 -- Insert sample client profiles
-INSERT INTO client_profiles (user_id, name, address, phone, saved_addresses)
+INSERT INTO client_profiles (id, name, address, phone, saved_addresses)
 VALUES
-  (
-    'client1', 
+  (1, 
     'John Doe', 
     '123 Maple Dr, Anytown', 
     '555-111-2222',
@@ -19,8 +18,7 @@ VALUES
       }
     ]'
   ),
-  (
-    'client2', 
+  (2,
     'Jane Smith', 
     '789 Oak Ln, Someville', 
     '555-333-4444',
@@ -32,8 +30,7 @@ VALUES
       }
     ]'
   ),
-  (
-    'client3', 
+  (3, 
     'Bob Johnson', 
     '101 Pine St, Othertown', 
     '555-555-6666',
@@ -51,37 +48,46 @@ VALUES
     ]'
   );
 
+-- Reset the sequence for client_profiles
+SELECT setval('client_profiles_id_seq', 3);
+
 -- Insert sample orders
 INSERT INTO orders (
   client_id, restaurant_id, restaurant_name, 
   total_price, status, delivery_address, 
-  delivery_notes, payment_method, payment_status
+  delivery_notes, payment_method, payment_status,
+  delivery_id
 )
 VALUES
   (
-    'client1', 1, 'Pizza Palace',
+    1, 1, 'Pizza Palace',
     32.97, 'delivered', '123 Maple Dr, Anytown',
-    'Please leave at the door', 'credit_card', 'completed'
+    'Please leave at the door', 'credit_card', 'completed',
+    1  -- Livreur #1
   ),
   (
-    'client1', 3, 'Sushi Spot',
+    1, 3, 'Sushi Spot',
     22.97, 'delivered', '456 Corporate Blvd, Anytown',
-    NULL, 'credit_card', 'completed'
+    NULL, 'credit_card', 'completed',
+    2  -- Livreur #2
   ),
   (
-    'client2', 2, 'Burger Barn',
+    2, 2, 'Burger Barn',
     26.97, 'delivered', '789 Oak Ln, Someville',
-    'Ring doorbell', 'paypal', 'completed'
+    'Ring doorbell', 'paypal', 'completed',
+    1  -- Livreur #1
   ),
   (
-    'client3', 1, 'Pizza Palace',
+    3, 1, 'Pizza Palace',
     27.98, 'delivered', '101 Pine St, Othertown',
-    NULL, 'credit_card', 'completed'
+    NULL, 'credit_card', 'completed',
+    3  -- Livreur #2
   ),
   (
-    'client2', 3, 'Sushi Spot',
+    2, 3, 'Sushi Spot',
     17.97, 'pending', '789 Oak Ln, Someville',
-    NULL, 'credit_card', 'pending'
+    NULL, 'credit_card', 'pending',
+    3
   );
 
 -- Insert sample order items

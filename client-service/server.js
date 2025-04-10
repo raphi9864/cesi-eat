@@ -197,6 +197,24 @@ app.get('/orders/:orderId', async (req, res) => {
   }
 });
 
+app.get('/orders/delivery/:deliveryId', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT o.*, 
+        (SELECT json_agg(i) FROM order_items i WHERE i.order_id = o.id) as items 
+       FROM orders o 
+       WHERE o.delivery_id = $1 
+       ORDER BY o.created_at DESC`,
+      [req.params.deliveryId]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 app.patch('/orders/:orderId/status', async (req, res) => {
   const { status } = req.body;
   
