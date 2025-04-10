@@ -5,13 +5,19 @@ import apiClient from '../api/axiosConfig';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
+  const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [error, setError] = useState(null);
   const [cancellingOrderId, setCancellingOrderId] = useState(null);
+  const [processingOrderId, setProcessingOrderId] = useState(null);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchOrders();
+    if (user?.role === 'delivery') {
+      fetchPendingOrders();
+    }
   }, [user]);
 
   const fetchOrders = async () => {
@@ -40,6 +46,66 @@ const Orders = () => {
       setError('Impossible de charger les commandes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingOrders = async () => {
+    if (!user || user.role !== 'delivery') return;
+    
+    setLoadingPending(true);
+    try {
+      console.log('Fetching pending orders from:', '/delivery/orders/pending');
+      const response = await apiClient.get('/delivery/orders/pending');
+      console.log('Pending orders response:', response.data);
+      setPendingOrders(response.data);
+    } catch (err) {
+      console.error('Error fetching pending orders:', err);
+      // Display a notification to the user about the error
+      alert('Impossible de charger les commandes en attente: ' + 
+        (err.response?.data?.message || err.message || 'Erreur inconnue'));
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  const acceptOrder = async (orderId) => {
+    if (!user || !user.id) return;
+    
+    setProcessingOrderId(orderId);
+    try {
+      await apiClient.post(`/delivery/orders/${orderId}/accept`, {
+        deliveryPersonId: user.id
+      });
+      
+      // Remove from pending orders
+      setPendingOrders(pendingOrders.filter(order => order.id !== orderId));
+      
+      // Refresh orders list
+      fetchOrders();
+    } catch (err) {
+      console.error('Error accepting order:', err);
+      alert('Impossible d\'accepter la commande');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const rejectOrder = async (orderId) => {
+    if (!user || !user.id) return;
+    
+    setProcessingOrderId(orderId);
+    try {
+      await apiClient.post(`/delivery/orders/${orderId}/reject`, {
+        deliveryPersonId: user.id
+      });
+      
+      // Remove from pending orders
+      setPendingOrders(pendingOrders.filter(order => order.id !== orderId));
+    } catch (err) {
+      console.error('Error rejecting order:', err);
+      alert('Impossible de rejeter la commande');
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
@@ -105,11 +171,101 @@ const Orders = () => {
     );
   }
 
+  // Section pour les livreurs: commandes en attente à accepter ou rejeter
+  const renderPendingOrdersSection = () => {
+    if (user?.role !== 'delivery') return null;
+    
+    return (
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Commandes en Attente de Livraison</h2>
+          <button 
+            onClick={fetchPendingOrders}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            Actualiser
+          </button>
+        </div>
+        
+        {loadingPending ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-2"></div>
+            <p className="text-gray-600">Chargement des commandes en attente...</p>
+          </div>
+        ) : pendingOrders.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <p className="text-gray-600">Aucune commande en attente de livraison pour le moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingOrders.map(order => (
+              <div key={order.id} className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-white border-b">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-gray-800">Commande #{order.id}</h3>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                      En attente
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-sm">{new Date(order.created_at).toLocaleString('fr-FR')}</p>
+                </div>
+                
+                <div className="p-4">
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-1">Restaurant</p>
+                    <p className="font-medium">{order.restaurant_name}</p>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-1">Adresse de livraison</p>
+                    <p className="font-medium">{order.delivery_address}</p>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-500 mb-1">Total</p>
+                    <p className="font-bold text-lg">{typeof order.total_price === 'number' 
+                      ? `${order.total_price.toFixed(2)}€` 
+                      : 'Prix non disponible'}</p>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      className="flex-1 py-2 rounded-md bg-primary text-white font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+                      onClick={() => acceptOrder(order.id)}
+                      disabled={processingOrderId === order.id}
+                    >
+                      {processingOrderId === order.id ? 'Traitement...' : 'Accepter'}
+                    </button>
+                    
+                    <button
+                      className="flex-1 py-2 rounded-md bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+                      onClick={() => rejectOrder(order.id)}
+                      disabled={processingOrderId === order.id}
+                    >
+                      {processingOrderId === order.id ? 'Traitement...' : 'Refuser'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Affichage s'il n'y a pas de commandes
-  if (orders.length === 0) {
+  if (orders.length === 0 && (!user || user.role !== 'delivery' || pendingOrders.length === 0)) {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Mes Commandes</h1>
+        
+        {/* Section des commandes en attente pour les livreurs */}
+        {renderPendingOrdersSection()}
+        
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
           <div className="flex flex-col items-center justify-center">
             <div className="mb-6 text-gray-300">
@@ -149,6 +305,13 @@ const Orders = () => {
             En attente
           </span>
         );
+      case 'waiting_restaurant_validation':
+        return (
+          <span className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full text-xs font-medium inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+            En attente restaurant
+          </span>
+        );
       case 'processing':
         return (
           <span className="px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium inline-flex items-center gap-1">
@@ -185,6 +348,7 @@ const Orders = () => {
   const getOrderStatusTimeline = (status) => {
     const steps = [
       { key: 'pending', label: 'Commande reçue', icon: '📋' },
+      { key: 'waiting_restaurant_validation', label: 'En attente validation restaurant', icon: '🔄' },
       { key: 'processing', label: 'En préparation', icon: '👨‍🍳' },
       { key: 'ready_for_pickup', label: 'Prêt pour livraison', icon: '📦' },
       { key: 'on_delivery', label: 'En cours de livraison', icon: '🚚' },
@@ -274,6 +438,7 @@ const Orders = () => {
             <p className={`
               inline-flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-full
               ${status === 'pending' ? 'bg-blue-100 text-blue-800' : 
+                status === 'waiting_restaurant_validation' ? 'bg-amber-100 text-amber-800' :
                 status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
                 status === 'ready_for_pickup' ? 'bg-purple-100 text-purple-800' :
                 status === 'on_delivery' ? 'bg-indigo-100 text-indigo-800' :
@@ -284,6 +449,7 @@ const Orders = () => {
                 <span className={`
                   animate-ping absolute inline-flex h-full w-full rounded-full opacity-75
                   ${status === 'pending' ? 'bg-blue-400' : 
+                    status === 'waiting_restaurant_validation' ? 'bg-amber-400' :
                     status === 'processing' ? 'bg-yellow-400' :
                     status === 'ready_for_pickup' ? 'bg-purple-400' :
                     status === 'on_delivery' ? 'bg-indigo-400' :
@@ -293,6 +459,7 @@ const Orders = () => {
                 <span className={`
                   relative inline-flex rounded-full h-2 w-2
                   ${status === 'pending' ? 'bg-blue-500' : 
+                    status === 'waiting_restaurant_validation' ? 'bg-amber-500' :
                     status === 'processing' ? 'bg-yellow-500' :
                     status === 'ready_for_pickup' ? 'bg-purple-500' :
                     status === 'on_delivery' ? 'bg-indigo-500' :
@@ -301,6 +468,7 @@ const Orders = () => {
                 `}></span>
               </span>
               {status === 'pending' ? 'Commande en attente' :
+                status === 'waiting_restaurant_validation' ? 'En attente de validation restaurant' :
                 status === 'processing' ? 'Commande en préparation' :
                 status === 'ready_for_pickup' ? 'Prêt à être livré' :
                 status === 'on_delivery' ? 'En cours de livraison' :
@@ -333,6 +501,9 @@ const Orders = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Mes Commandes</h1>
+      
+      {/* Section des commandes en attente pour les livreurs */}
+      {renderPendingOrdersSection()}
       
       <div className="space-y-6">
         {sortedOrders.map((order) => (

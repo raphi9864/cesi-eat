@@ -108,6 +108,12 @@ const RestaurateurDashboard = () => {
             Nouvelle
           </span>
         );
+      case 'waiting_restaurant_validation':
+        return (
+          <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs">
+            En attente de validation
+          </span>
+        );
       case 'preparing':
         return (
           <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
@@ -155,6 +161,30 @@ const RestaurateurDashboard = () => {
     //   console.error("Failed to update order status", err);
     //   // Handle error (e.g., show toast notification)
     // }
+  };
+
+  // Function to validate an order that's waiting for restaurant validation
+  const validateOrder = async (orderId) => {
+    try {
+      await apiClient.post(`/restaurants/orders/${orderId}/validate`, {
+        restaurantId: user.id
+      });
+      
+      // Update the order status in the local state
+      setAllOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'processing' } 
+            : order
+        )
+      );
+      
+      // Show success message (optional)
+      alert('Commande validée avec succès');
+    } catch (error) {
+      console.error('Error validating order:', error);
+      alert('Erreur lors de la validation de la commande');
+    }
   };
 
   const toggleItemAvailability = async (id) => {
@@ -308,21 +338,31 @@ const RestaurateurDashboard = () => {
                         {getStatusBadge(order.status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {/* Basic status update dropdown */}
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateOrderStatus(order.id || order._id, e.target.value)}
-                          className="border p-1 rounded-md text-sm"
-                          disabled={['delivered', 'cancelled'].includes(order.status?.toLowerCase())} // Disable for history items
-                        >
-                          {/* Add more relevant statuses based on workflow */}
-                          <option value="new" disabled={order.status !== 'new'}>Nouvelle</option>
-                          <option value="preparing" disabled={!['new', 'preparing'].includes(order.status)}>Préparation</option>
-                          <option value="ready" disabled={!['preparing', 'ready'].includes(order.status)}>Prête</option>
-                          <option value="delivering" disabled={!['ready', 'delivering'].includes(order.status)}>En Livraison</option>
-                          <option value="delivered" disabled>Livrée</option>
-                          <option value="cancelled" disabled={['delivered', 'cancelled'].includes(order.status)}>Annuler</option>
-                        </select>
+                        {/* Actions based on order status */}
+                        {order.status === 'waiting_restaurant_validation' ? (
+                          <button
+                            onClick={() => validateOrder(order.id)}
+                            className="bg-primary hover:bg-primary-dark text-white px-3 py-1.5 rounded-md text-sm"
+                          >
+                            Valider la commande
+                          </button>
+                        ) : (
+                          /* Basic status update dropdown for other statuses */
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateOrderStatus(order.id || order._id, e.target.value)}
+                            className="border p-1 rounded-md text-sm"
+                            disabled={['delivered', 'cancelled'].includes(order.status?.toLowerCase())} // Disable for history items
+                          >
+                            {/* Add more relevant statuses based on workflow */}
+                            <option value="new" disabled={order.status !== 'new'}>Nouvelle</option>
+                            <option value="preparing" disabled={!['new', 'preparing'].includes(order.status)}>Préparation</option>
+                            <option value="ready" disabled={!['preparing', 'ready'].includes(order.status)}>Prête</option>
+                            <option value="delivering" disabled={!['ready', 'delivering'].includes(order.status)}>En Livraison</option>
+                            <option value="delivered" disabled>Livrée</option>
+                            <option value="cancelled" disabled={['delivered', 'cancelled'].includes(order.status)}>Annuler</option>
+                          </select>
+                        )}
                       </td>
                     </tr>
                   ))}

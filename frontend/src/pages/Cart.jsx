@@ -59,6 +59,7 @@ const Cart = () => {
         totalPrice: getTotal() + 2.99, // Total + frais de livraison
         deliveryAddress: user.address || "Adresse à définir", // Idéalement, récupérer depuis le profil
         deliveryNotes: "",
+        status: "pending", // Assure que la commande est créée avec le statut 'pending'
         paymentMethod: "card" // Valeur par défaut, à remplacer par un choix de l'utilisateur
       };
       

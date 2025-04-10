@@ -20,6 +20,17 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
+// Define order statuses for validation
+const validOrderStatuses = [
+  'pending', 
+  'waiting_restaurant_validation', 
+  'processing', 
+  'ready_for_pickup', 
+  'on_delivery', 
+  'delivered', 
+  'cancelled'
+];
+
 // Routes
 
 // Client Profile Routes
@@ -176,6 +187,30 @@ app.get('/orders/restaurant/:restaurantId', async (req, res) => {
   }
 });
 
+// Get all pending orders (for delivery assignment)
+// This route needs to be defined BEFORE the /:orderId route to avoid conflicts
+app.get('/orders/pending', async (req, res) => {
+  try {
+    console.log('Client service: Received request for pending orders');
+    
+    const result = await pool.query(
+      `SELECT o.*, 
+        (SELECT COALESCE(json_agg(i), '[]'::json) FROM order_items i WHERE i.order_id = o.id) as items 
+       FROM orders o 
+       WHERE o.status = 'pending' AND o.delivery_id IS NULL 
+       ORDER BY o.created_at ASC`
+    );
+    
+    console.log(`Client service: Found ${result.rows.length} pending orders`);
+    
+    // Ensure we always return an array
+    res.json(result.rows || []);
+  } catch (error) {
+    console.error('Client service - Error fetching pending orders:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 app.get('/orders/:orderId', async (req, res) => {
   try {
     const result = await pool.query(
@@ -216,13 +251,31 @@ app.get('/orders/delivery/:deliveryId', async (req, res) => {
 });
 
 app.patch('/orders/:orderId/status', async (req, res) => {
-  const { status } = req.body;
+  const { status, delivery_id } = req.body;
   
   try {
-    const result = await pool.query(
-      'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
-      [status, req.params.orderId]
-    );
+    // Validate status
+    if (!validOrderStatuses.includes(status)) {
+      return res.status(400).json({ 
+        message: `Invalid status value. Must be one of: ${validOrderStatuses.join(', ')}` 
+      });
+    }
+    
+    let updateQuery = 'UPDATE orders SET status = $1';
+    const queryParams = [status];
+    let paramIndex = 2;
+    
+    // If delivery_id is provided, update that field too
+    if (delivery_id !== undefined) {
+      updateQuery += `, delivery_id = $${paramIndex}`;
+      queryParams.push(delivery_id);
+      paramIndex++;
+    }
+    
+    updateQuery += ` WHERE id = $${paramIndex} RETURNING *`;
+    queryParams.push(req.params.orderId);
+    
+    const result = await pool.query(updateQuery, queryParams);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Order not found' });

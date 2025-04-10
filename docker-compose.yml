@@ -66,6 +66,7 @@ services:
       - restaurant-db
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@restaurant-db:5432/restaurant
+      - CLIENT_SERVICE_URL=http://client-service:5002
     networks:
       - app-network
 
@@ -114,10 +115,22 @@ services:
       - "5003:5003"
     depends_on:
       - delivery-db
+      - client-service
+      - restaurant-service
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@delivery-db:5432/delivery
+      - CLIENT_SERVICE_URL=http://client-service:5002
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:5001
+      - NODE_ENV=development
+      - PORT=5003
     networks:
       - app-network
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Delivery Database (PostgreSQL)
   delivery-db:

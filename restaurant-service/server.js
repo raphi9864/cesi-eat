@@ -212,6 +212,49 @@ app.delete('/dishes/:id', async (req, res) => {
   }
 });
 
+// Order validation endpoint
+app.post('/orders/:orderId/validate', async (req, res) => {
+  const { orderId } = req.params;
+  const { restaurantId } = req.body;
+  
+  if (!restaurantId) {
+    return res.status(400).json({ message: 'Restaurant ID is required' });
+  }
+  
+  try {
+    // Make sure the restaurant exists
+    const restaurantResult = await pool.query('SELECT * FROM restaurants WHERE id = $1', [restaurantId]);
+    
+    if (restaurantResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Restaurant not found' });
+    }
+    
+    // Update the order status via client service
+    const clientServiceUrl = process.env.CLIENT_SERVICE_URL || 'http://client-service:5002';
+    
+    try {
+      const axios = require('axios');
+      const response = await axios.patch(`${clientServiceUrl}/orders/${orderId}/status`, {
+        status: 'processing'
+      });
+      
+      res.status(200).json({
+        message: 'Order validated successfully',
+        order: response.data
+      });
+    } catch (error) {
+      console.error('Error updating order status:', error.message);
+      res.status(500).json({ 
+        message: 'Failed to validate order',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Error validating order:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP' });
